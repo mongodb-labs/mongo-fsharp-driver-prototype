@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 2012 for Web
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.MongoDB.Driver", "MongoDB.Driver\FSharp.MongoDB.Driver.fsproj", "{F2F775C4-7C17-4E02-A122-123514FC15C6}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.MongoDB.DriverUnitTests", "MongoDB.DriverUnitTests\FSharp.MongoDB.DriverUnitTests.fsproj", "{C0924CF9-FE9C-4150-972C-1AF51B147286}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F2F775C4-7C17-4E02-A122-123514FC15C6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F2F775C4-7C17-4E02-A122-123514FC15C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F2F775C4-7C17-4E02-A122-123514FC15C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F2F775C4-7C17-4E02-A122-123514FC15C6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C0924CF9-FE9C-4150-972C-1AF51B147286}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C0924CF9-FE9C-4150-972C-1AF51B147286}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C0924CF9-FE9C-4150-972C-1AF51B147286}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C0924CF9-FE9C-4150-972C-1AF51B147286}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
