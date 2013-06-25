@@ -86,3 +86,31 @@ module Comparison =
                 subdoc.Add("$nin", BsonArray(values)) |> ignore
                 doc
 
+[<AutoOpen>]
+module Logical =
+    let private filterNull = fun x ->
+        match x with
+        | null -> false
+        | _ -> true
+
+    type Query with
+        static member And (exprs : #seq<#BsonDocument>) =
+            let filtered = exprs |> Seq.filter filterNull
+            let flattened = seq { for doc in filtered do for elem in doc do yield elem }
+            QueryDocument(flattened)
+
+        static member Or (exprs : #seq<#BsonDocument>) =
+            let filtered = exprs |> Seq.filter filterNull
+            QueryDocument("$or", BsonArray(filtered))
+
+        static member Nor (exprs : #seq<#BsonDocument>) =
+            let filtered = exprs |> Seq.filter filterNull
+            QueryDocument("$nor", BsonArray(filtered))
+
+        static member not (cont : string -> QueryDocument) =
+            fun (name : string) ->
+                let doc = name |> cont
+                let subdoc = doc.GetElement(name).Value :?> BsonDocument
+
+                doc.Set(name, QueryDocument("$not", subdoc)) |> ignore
+                doc

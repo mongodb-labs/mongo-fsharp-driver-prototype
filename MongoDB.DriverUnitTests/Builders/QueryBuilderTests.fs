@@ -75,3 +75,50 @@ module Comparison =
 
         test <@ %query = %expected @>
 
+[<TestFixture>]
+module Logical =
+
+    [<Test>]
+    let ``test and``() =
+        let query = <@ [ "price" |> Query.eq 1.99
+                         "qty" |> (Query.init |> Query.lt 20)
+                         "sale" |> Query.eq true ] |> Query.And @>
+
+        let expected = <@ QueryDocument([ BsonElement("price", BsonDouble(1.99))
+                                          BsonElement("qty", BsonDocument("$lt", BsonInt32(20)))
+                                          BsonElement("sale", BsonBoolean(true)) ]) @>
+
+        test <@ %query = %expected @>
+
+    [<Test>]
+    let ``test or``() =
+        let query = <@ [ "price" |> Query.eq 1.99
+                         [ "qty" |> (Query.init |> Query.lt 20)
+                           "sale" |> Query.eq true ] |> Query.Or
+                       ] |> Query.And @>
+
+        let expected = <@ QueryDocument([ BsonElement("price", BsonDouble(1.99))
+                                          BsonElement("$or", BsonArray([ QueryDocument("qty", BsonDocument("$lt", BsonInt32(20)))
+                                                                         QueryDocument("sale", BsonBoolean(true)) ])) ]) @>
+
+        test <@ %query = %expected @>
+
+    [<Test>]
+    let ``test nor``() =
+        let query = <@ [ "price" |> Query.eq 1.99
+                         "qty" |> (Query.init |> Query.lt 20)
+                         "sale" |> Query.eq true ] |> Query.Nor @>
+
+        let expected = <@ QueryDocument("$nor", BsonArray([ QueryDocument("price", BsonDouble(1.99))
+                                                            QueryDocument("qty", BsonDocument("$lt", BsonInt32(20)))
+                                                            QueryDocument("sale", BsonBoolean(true)) ])) @>
+
+        test <@ %query = %expected @>
+
+    [<Test>]
+    let ``test not``() =
+        let query = <@ "price" |> (Query.init |> (Query.not << Query.gt 1.99)) @>
+        let expected = <@ QueryDocument("price", QueryDocument("$not", QueryDocument("$gt", BsonDouble(1.99)))) @>
+
+        test <@ %query = %expected @>
+
