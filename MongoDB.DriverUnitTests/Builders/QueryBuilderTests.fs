@@ -122,3 +122,35 @@ module Logical =
 
         test <@ %query = %expected @>
 
+[<TestFixture>]
+module Element =
+
+    [<Test>]
+    let ``test exists``() =
+        let query = <@ "qty" |> (Query.init |> Query.exists |> Query.Nin [5; 15]) @>
+        let expected = <@ QueryDocument("qty", BsonDocument([ BsonElement("$exists", BsonBoolean(true))
+                                                              BsonElement("$nin", BsonArray([5; 15])) ])) @>
+
+        test <@ %query = %expected @>
+
+    [<Test>]
+    let ``test mod``() =
+        let query = <@ "qty" |> (Query.init |> Query.Mod (4, 0)) @>
+        let expected = <@ QueryDocument("qty", BsonDocument("$mod", BsonArray([4; 0]))) @>
+
+        test <@ %query = %expected @>
+
+    [<Test>]
+    let ``test not exists``() =
+        let query = <@ "qty" |> Query.nexists @>
+        let expected = <@ QueryDocument("qty", BsonDocument("$exists", BsonBoolean(false))) @>
+
+        test <@ %query = %expected @>
+
+    [<Test>]
+    let ``test type``() =
+        let query = <@ "price" |> (Query.init |> Query.Type BsonType.Double) @>
+        let expected = <@ QueryDocument("price", BsonDocument("$type", BsonInt32(1))) @>
+
+        test <@ %query = %expected @>
+

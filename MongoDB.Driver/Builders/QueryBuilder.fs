@@ -114,3 +114,35 @@ module Logical =
 
                 doc.Set(name, QueryDocument("$not", subdoc)) |> ignore
                 doc
+
+[<AutoOpen>]
+module Element =
+    type Query with
+        static member exists (cont : string -> QueryDocument) =
+            fun (name : string) ->
+                let doc = name |> cont
+                let subdoc = doc.GetElement(name).Value :?> BsonDocument
+
+                subdoc.Add("$exists", BsonValue.Create(true)) |> ignore
+                doc
+
+        static member Mod (div, rem) (cont : string -> QueryDocument) =
+            fun (name : string) ->
+                let doc = name |> cont
+                let subdoc = doc.GetElement(name).Value :?> BsonDocument
+
+                subdoc.Add("$mod", BsonArray([BsonValue.Create(div); BsonValue.Create(rem)])) |> ignore
+                doc
+
+        static member nexists (name : string) =
+            if name = null then
+                raise <| ArgumentNullException("name")
+            QueryDocument(name, BsonDocument("$exists", BsonValue.Create(false)))
+
+        static member Type (value : BsonType) (cont : string -> QueryDocument) =
+             fun (name : string) ->
+                let doc = name |> cont
+                let subdoc = doc.GetElement(name).Value :?> BsonDocument
+
+                subdoc.Add("$type", BsonValue.Create(int value)) |> ignore
+                doc
