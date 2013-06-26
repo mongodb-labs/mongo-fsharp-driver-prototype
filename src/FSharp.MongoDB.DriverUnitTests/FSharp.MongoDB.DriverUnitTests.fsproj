@@ -64,7 +64,7 @@
     <None Include="app.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\MongoDB.Driver\FSharp.MongoDB.Driver.fsproj">
+    <ProjectReference Include="..\FSharp.MongoDB.Driver\FSharp.MongoDB.Driver.fsproj">
       <Name>FSharp.MongoDB.Driver</Name>
       <Project>{f2f775c4-7c17-4e02-a122-123514fc15c6}</Project>
       <Private>True</Private>
