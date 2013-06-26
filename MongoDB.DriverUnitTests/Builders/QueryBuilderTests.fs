@@ -98,8 +98,8 @@ module Logical =
                        ] |> Query.And @>
 
         let expected = <@ QueryDocument([ BsonElement("price", BsonDouble(1.99))
-                                          BsonElement("$or", BsonArray([ QueryDocument("qty", BsonDocument("$lt", BsonInt32(20)))
-                                                                         QueryDocument("sale", BsonBoolean(true)) ])) ]) @>
+                                          BsonElement("$or", BsonArray([ BsonDocument("qty", BsonDocument("$lt", BsonInt32(20)))
+                                                                         BsonDocument("sale", BsonBoolean(true)) ])) ]) @>
 
         test <@ %query = %expected @>
 
@@ -109,16 +109,16 @@ module Logical =
                          "qty" |> (Query.init |> Query.lt 20)
                          "sale" |> Query.eq true ] |> Query.Nor @>
 
-        let expected = <@ QueryDocument("$nor", BsonArray([ QueryDocument("price", BsonDouble(1.99))
-                                                            QueryDocument("qty", BsonDocument("$lt", BsonInt32(20)))
-                                                            QueryDocument("sale", BsonBoolean(true)) ])) @>
+        let expected = <@ QueryDocument("$nor", BsonArray([ BsonDocument("price", BsonDouble(1.99))
+                                                            BsonDocument("qty", BsonDocument("$lt", BsonInt32(20)))
+                                                            BsonDocument("sale", BsonBoolean(true)) ])) @>
 
         test <@ %query = %expected @>
 
     [<Test>]
     let ``test not``() =
         let query = <@ "price" |> (Query.init |> (Query.not << Query.gt 1.99)) @>
-        let expected = <@ QueryDocument("price", QueryDocument("$not", QueryDocument("$gt", BsonDouble(1.99)))) @>
+        let expected = <@ QueryDocument("price", BsonDocument("$not", BsonDocument("$gt", BsonDouble(1.99)))) @>
 
         test <@ %query = %expected @>
 
