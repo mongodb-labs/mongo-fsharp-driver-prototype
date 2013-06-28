@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Express 2012 for Web
+# Visual Studio 2012
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.MongoDB.Driver", "src\FSharp.MongoDB.Driver\FSharp.MongoDB.Driver.fsproj", "{F2F775C4-7C17-4E02-A122-123514FC15C6}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.MongoDB.DriverUnitTests", "src\FSharp.MongoDB.DriverUnitTests\FSharp.MongoDB.DriverUnitTests.fsproj", "{C0924CF9-FE9C-4150-972C-1AF51B147286}"
