@@ -39,6 +39,18 @@
     <Compile Include="Builders\QueryBuilder.fs">
       <Link>Builders\QueryBuilder.fs</Link>
     </Compile>
+    <Compile Include="TypeProvider\ProvidedTypes-0.4.fsi">
+      <Link>TypeProvider\ProvidedTypes-0.4.fsi</Link>
+    </Compile>
+    <Compile Include="TypeProvider\ProvidedTypes-0.4.fs">
+      <Link>TypeProvider\ProvidedTypes-0.4.fs</Link>
+    </Compile>
+    <Compile Include="TypeProvider\MongoProvider.fs">
+      <Link>TypeProvider\MongoProvider.fs</Link>
+    </Compile>
+    <Compile Include="TypeProvider\MongoRuntime.fs">
+      <Link>TypeProvider\MongoRuntime.fs</Link>
+    </Compile>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
