@@ -5,32 +5,31 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>c0924cf9-fe9c-4150-972c-1af51b147286</ProjectGuid>
+    <ProjectGuid>0e5580eb-3fb4-40fa-8762-8c2ba10f4927</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>MongoDB.DriverUnitTests</RootNamespace>
-    <AssemblyName>FSharp.MongoDB.DriverUnitTests</AssemblyName>
+    <RootNamespace>FSharp.MongoDB.Driver.TypeProvider</RootNamespace>
+    <AssemblyName>FSharp.MongoDB.Driver.TypeProvider</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <Name>FSharp.MongoDB.DriverUnitTests</Name>
+    <Name>FSharp.MongoDB.Driver.TypeProvider</Name>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <Tailcalls>false</Tailcalls>
-    <OutputPath>bin\Debug\</OutputPath>
+    <OutputPath>bin\Debug</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Debug\FSharp.MongoDB.DriverUnitTests.xml</DocumentationFile>
-    <StartAction>Project</StartAction>
+    <DocumentationFile>bin\Debug\FSharp.MongoDB.Driver.TypeProvider.xml</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
-    <OutputPath>bin\Release\</OutputPath>
+    <OutputPath>bin\Release</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Release\FSharp.MongoDB.DriverUnitTests.xml</DocumentationFile>
+    <DocumentationFile>bin\Release\FSharp.MongoDB.Driver.TypeProvider.xml</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core, Version=4.3.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
@@ -45,31 +44,24 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="mscorlib" />
-    <Reference Include="nunit.framework">
-      <HintPath>..\..\packages\NUnit.2.6.2\lib\nunit.framework.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
-    <Reference Include="Unquote">
-      <HintPath>..\..\packages\Unquote.2.2.2\lib\net40\Unquote.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\FSharp.MongoDB.Driver\FSharp.MongoDB.Driver.fsproj">
-      <Name>FSharp.MongoDB.Driver</Name>
-      <Project>{f2f775c4-7c17-4e02-a122-123514fc15c6}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Builders\QueryBuilderTests.fs">
-      <Link>Builders\QueryBuilderTests.fs</Link>
+    <Compile Include="TypeProvider\ProvidedTypes-0.4.fsi">
+      <Link>TypeProvider\ProvidedTypes-0.4.fsi</Link>
     </Compile>
-    <None Include="packages.config" />
-    <None Include="app.config" />
+    <Compile Include="TypeProvider\ProvidedTypes-0.4.fs">
+      <Link>TypeProvider\ProvidedTypes-0.4.fs</Link>
+    </Compile>
+    <Compile Include="TypeProvider\MongoRuntime.fs">
+      <Link>TypeProvider\MongoRuntime.fs</Link>
+    </Compile>
+    <Compile Include="TypeProvider\MongoProvider.fs">
+      <Link>TypeProvider\MongoProvider.fs</Link>
+    </Compile>
+    <None Include="Script.fsx" />
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
