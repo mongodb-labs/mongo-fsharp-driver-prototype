@@ -1,0 +1,3 @@
+[submodule "lib/mongo-csharp-driver"]
+	path = lib/mongo-csharp-driver
+	url = https://github.com/mongodb/mongo-csharp-driver.git
