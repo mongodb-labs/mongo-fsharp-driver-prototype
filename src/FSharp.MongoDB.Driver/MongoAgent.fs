@@ -14,6 +14,9 @@ open MongoDB.Driver.Core.Events
 open MongoDB.Driver.Core.Operations
 open MongoDB.Driver.Core.Protocol
 
+type internal Commands =
+        | Insert of InsertOperation * AsyncReplyChannel<seq<WriteConcernResult>>
+
 type MongoAgent(settings : MongoSettings.AllSettings) =
 
     let eventPublisher = EventPublisher()
@@ -48,28 +51,44 @@ type MongoAgent(settings : MongoSettings.AllSettings) =
     let cluster = new SingleServerCluster(DnsEndPoint("localhost", 27017), nodeFactory)
     do cluster.Initialize()
 
+    let agent = MailboxProcessor.Start(fun inbox ->
+        let rec loop s = async {
+            let! msg = inbox.Receive()
+            match msg with
+                | Insert (op, replyCh) ->
+                    use node = cluster.SelectServer(// ReadPreferenceServerSelector(ReadPreference.Primary),
+                                                    DelegateServerSelector("any", fun desc ->
+                                                        let iter = desc.GetEnumerator()
+                                                        if iter.MoveNext() then iter.Current else null),
+                                                    TimeSpan.FromMilliseconds(float Timeout.Infinite),
+                                                    CancellationToken.None)
+
+                    use channel = node.GetChannel(TimeSpan.FromMilliseconds(float Timeout.Infinite),
+                                                  CancellationToken.None)
+
+                    op.Execute(channel) |> replyCh.Reply
+
+            return! loop s
+        }
+
+        loop null
+    )
+
     member internal x.Cluster = cluster
+
+    member internal x.Agent = agent
 
 [<AutoOpen>]
 module CollectionOps =
 
     type MongoAgent with
 
-        member x.Insert db clctn (doc : 'DocType) =
-
-            use node = x.Cluster.SelectServer(// ReadPreferenceServerSelector(ReadPreference.Primary),
-                                              DelegateServerSelector("any", fun desc ->
-                                                  let enum = desc.GetEnumerator()
-                                                  enum.MoveNext() |> ignore
-                                                  enum.Current),
-                                              TimeSpan.FromMilliseconds(float Timeout.Infinite),
-                                              CancellationToken.None)
-
-            use channel = node.GetChannel(TimeSpan.FromMilliseconds(float Timeout.Infinite),
-                                          CancellationToken.None)
+        member x.BulkInsert db clctn (docs : seq<'DocType>) =
 
             let insertOp = InsertOperation(MongoNamespace(db, clctn), BsonBinaryReaderSettings(),
                                            BsonBinaryWriterSettings(), WriteConcern.Acknowledged,
-                                           true, false, typeof<'DocType>, [ doc ], InsertFlags.None, 0)
+                                           true, false, typeof<'DocType>, docs, InsertFlags.None, 0)
 
-            insertOp.Execute(channel)
+            x.Agent.PostAndAsyncReply(fun replyCh -> Insert (insertOp, replyCh))
+
+        member x.Insert db clctn (doc : 'DocType) = x.BulkInsert db clctn [ doc ]
