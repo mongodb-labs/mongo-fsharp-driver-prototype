@@ -14,16 +14,35 @@ open MongoDB.Driver.Core.Events
 open MongoDB.Driver.Core.Operations
 open MongoDB.Driver.Core.Protocol
 
-type MongoAgent() =
+type MongoAgent(settings : MongoSettings.AllSettings) =
 
     let eventPublisher = EventPublisher()
     let traceManager = new TraceManager()
 
-    let streamFactory = DefaultStreamFactory(DefaultStreamFactorySettings.Defaults, DnsCache())
+    let streamSettings = DefaultStreamFactorySettings(connectTimeout = settings.StreamSettings.ConnectTimeout,
+                                                      readTimeout = settings.StreamSettings.ReadTimeout,
+                                                      writeTimeout = settings.StreamSettings.WriteTimeout,
+                                                      tcpReceiveBufferSize = settings.StreamSettings.TcpReceiveBufferSize,
+                                                      tcpSendBufferSize = settings.StreamSettings.TcpSendBufferSize)
+
+    let channelProviderSettings = DefaultChannelProviderSettings(connectionMaxIdleTime = settings.ChannelProviderSettings.ConnectionMaxIdleTime,
+                                                                 connectionMaxLifeTime = settings.ChannelProviderSettings.ConnectionMaxLifeTime,
+                                                                 maxSize = settings.ChannelProviderSettings.MaxSize,
+                                                                 minSize = settings.ChannelProviderSettings.MinSize,
+                                                                 sizeMaintenanceFrequency = settings.ChannelProviderSettings.SizeMaintenanceFrequency,
+                                                                 maxWaitQueueSize = settings.ChannelProviderSettings.WaitQueueSize)
+
+    let clusterableServerSettings = DefaultClusterableServerSettings(connectRetryFrequency = settings.ClusterableServerSettings.ConnectRetryFrequency,
+                                                                     heartbeatFrequency = settings.ClusterableServerSettings.HeartbeatFrequency,
+                                                                     maxDocumentSizeDefault = settings.ClusterableServerSettings.MaxDocumentSizeDefault,
+                                                                     maxMessageSizeDefault = settings.ClusterableServerSettings.MaxDocumentSizeDefault)
+
+
+    let streamFactory = DefaultStreamFactory(streamSettings, DnsCache())
     let connFactory = DefaultConnectionFactory(streamFactory, eventPublisher, traceManager)
-    let channelFactory = DefaultChannelProviderFactory(DefaultChannelProviderSettings.Defaults,
+    let channelFactory = DefaultChannelProviderFactory(channelProviderSettings,
                                                        connFactory, eventPublisher, traceManager)
-    let nodeFactory = DefaultClusterableServerFactory(false, DefaultClusterableServerSettings.Defaults,
+    let nodeFactory = DefaultClusterableServerFactory(false, clusterableServerSettings,
                                                       channelFactory, connFactory, eventPublisher, traceManager)
 
     let cluster = new SingleServerCluster(DnsEndPoint("localhost", 27017), nodeFactory)

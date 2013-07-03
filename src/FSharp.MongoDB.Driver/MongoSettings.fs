@@ -29,6 +29,12 @@ module MongoSettings =
         MaxMessageSizeDefault : int
     }
 
+    type AllSettings = {
+        StreamSettings : StreamSettings
+        ChannelProviderSettings : ChannelProviderSettings
+        ClusterableServerSettings : ClusterableServerSettings
+    }
+
     module Defaults =
         open System.Threading
 
@@ -54,4 +60,10 @@ module MongoSettings =
             HeartbeatFrequency = TimeSpan.FromSeconds <| float 10
             MaxDocumentSizeDefault = 4 * 1024 * 1024
             MaxMessageSizeDefault = 16000000 // 16MB (not 16 MiB!)
+        }
+
+        let allSettings = {
+            StreamSettings = streamSettings
+            ChannelProviderSettings = channelProviderSettings
+            ClusterableServerSettings = clusterableServerSettings
         }
