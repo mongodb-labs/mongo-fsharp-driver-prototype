@@ -16,6 +16,7 @@ open MongoDB.Driver.Core.Protocol
 
 type internal Commands =
         | Insert of InsertOperation * AsyncReplyChannel<seq<WriteConcernResult>>
+        | Remove of RemoveOperation * AsyncReplyChannel<WriteConcernResult>
 
 type MongoAgent(settings : MongoSettings.AllSettings) =
 
@@ -65,6 +66,16 @@ type MongoAgent(settings : MongoSettings.AllSettings) =
 
                     op.Execute(channel) |> replyCh.Reply
 
+                | Remove (op, replyCh) ->
+                    use node = cluster.SelectServer(ReadPreferenceServerSelector(ReadPreference.Primary),
+                                                    Timeout.InfiniteTimeSpan,
+                                                    CancellationToken.None)
+
+                    use channel = node.GetChannel(Timeout.InfiniteTimeSpan,
+                                                  CancellationToken.None)
+
+                    op.Execute(channel) |> replyCh.Reply
+
             return! loop s
         }
 
@@ -89,3 +100,11 @@ module CollectionOps =
             x.Agent.PostAndAsyncReply(fun replyCh -> Insert (insertOp, replyCh))
 
         member x.Insert db clctn (doc : 'DocType) = x.BulkInsert db clctn [ doc ]
+
+        member x.Remove db clctn query =
+
+            let removeOp = RemoveOperation(MongoNamespace(db, clctn), BsonBinaryReaderSettings.Defaults,
+                                           BsonBinaryWriterSettings.Defaults, WriteConcern.Acknowledged,
+                                           query, DeleteFlags.None)
+
+            x.Agent.PostAndAsyncReply(fun replyCh -> Remove (removeOp, replyCh))
