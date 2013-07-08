@@ -1,11 +1,13 @@
 namespace FSharp.MongoDB.Driver
 
 open System
+open System.Collections.Generic
 open System.Net
 open System.Threading
 
 open MongoDB.Bson
 open MongoDB.Bson.IO
+open MongoDB.Bson.Serialization.Serializers
 
 open MongoDB.Driver.Core
 open MongoDB.Driver.Core.Connections
@@ -16,7 +18,17 @@ open MongoDB.Driver.Core.Protocol
 
 type internal Commands =
         | Insert of InsertOperation * AsyncReplyChannel<seq<WriteConcernResult>>
+        | Find of QueryOperation<BsonDocument> * AsyncReplyChannel<IEnumerable<BsonDocument>>
         | Remove of RemoveOperation * AsyncReplyChannel<WriteConcernResult>
+
+type private CursorChannelProvider(channel : IServerChannel) =
+
+    interface IDisposable with
+        member x.Dispose() = channel.Dispose()
+
+    interface ICursorChannelProvider with
+        member x.Server = channel.Server
+        member x.GetChannel() = channel
 
 type MongoAgent(settings : MongoSettings.AllSettings) =
 
@@ -66,6 +78,23 @@ type MongoAgent(settings : MongoSettings.AllSettings) =
 
                     op.Execute(channel) |> replyCh.Reply
 
+                | Find (op, replyCh) ->
+                    use node = cluster.SelectServer(ReadPreferenceServerSelector(ReadPreference.Primary),
+                                                    Timeout.InfiniteTimeSpan,
+                                                    CancellationToken.None)
+
+                    let channel = node.GetChannel(Timeout.InfiniteTimeSpan,
+                                                  CancellationToken.None)
+
+                    let cursor = new CursorChannelProvider(channel)
+
+                    seq { use iter = op.Execute(cursor)
+                          while iter.MoveNext() do
+                              yield iter.Current
+
+                          (cursor :> IDisposable).Dispose()
+                    } |> replyCh.Reply
+
                 | Remove (op, replyCh) ->
                     use node = cluster.SelectServer(ReadPreferenceServerSelector(ReadPreference.Primary),
                                                     Timeout.InfiniteTimeSpan,
@@ -100,6 +129,15 @@ module CollectionOps =
             x.Agent.PostAndAsyncReply(fun replyCh -> Insert (insertOp, replyCh))
 
         member x.Insert db clctn (doc : 'DocType) = x.BulkInsert db clctn [ doc ]
+
+        member x.Find db clctn query project =
+
+            let queryOp = QueryOperation(MongoNamespace(db, clctn), BsonBinaryReaderSettings.Defaults,
+                                         BsonBinaryWriterSettings.Defaults, 100, project,
+                                         QueryFlags.None, 0, null, query, ReadPreference.Nearest,
+                                         null, BsonDocumentSerializer.Instance, 0)
+
+            x.Agent.PostAndAsyncReply(fun replyCh -> Find (queryOp, replyCh))
 
         member x.Remove db clctn query =
 
