@@ -56,14 +56,11 @@ type MongoAgent(settings : MongoSettings.AllSettings) =
             let! msg = inbox.Receive()
             match msg with
                 | Insert (op, replyCh) ->
-                    use node = cluster.SelectServer(// ReadPreferenceServerSelector(ReadPreference.Primary),
-                                                    DelegateServerSelector("any", fun desc ->
-                                                        let iter = desc.GetEnumerator()
-                                                        if iter.MoveNext() then iter.Current else null),
-                                                    TimeSpan.FromMilliseconds(float Timeout.Infinite),
+                    use node = cluster.SelectServer(ReadPreferenceServerSelector(ReadPreference.Primary),
+                                                    Timeout.InfiniteTimeSpan,
                                                     CancellationToken.None)
 
-                    use channel = node.GetChannel(TimeSpan.FromMilliseconds(float Timeout.Infinite),
+                    use channel = node.GetChannel(Timeout.InfiniteTimeSpan,
                                                   CancellationToken.None)
 
                     op.Execute(channel) |> replyCh.Reply
@@ -85,8 +82,8 @@ module CollectionOps =
 
         member x.BulkInsert db clctn (docs : seq<'DocType>) =
 
-            let insertOp = InsertOperation(MongoNamespace(db, clctn), BsonBinaryReaderSettings(),
-                                           BsonBinaryWriterSettings(), WriteConcern.Acknowledged,
+            let insertOp = InsertOperation(MongoNamespace(db, clctn), BsonBinaryReaderSettings.Defaults,
+                                           BsonBinaryWriterSettings.Defaults, WriteConcern.Acknowledged,
                                            true, false, typeof<'DocType>, docs, InsertFlags.None, 0)
 
             x.Agent.PostAndAsyncReply(fun replyCh -> Insert (insertOp, replyCh))
