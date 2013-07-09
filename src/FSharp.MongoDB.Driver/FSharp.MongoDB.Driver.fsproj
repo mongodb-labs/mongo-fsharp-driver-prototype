@@ -55,6 +55,9 @@
     <Compile Include="Builders\QueryBuilder.fs">
       <Link>Builders\QueryBuilder.fs</Link>
     </Compile>
+    <Compile Include="MongoOperationSettings.fs">
+      <Link>MongoOperationSettings.fs</Link>
+    </Compile>
     <Compile Include="MongoAgentSettings.fs">
       <Link>MongoAgentSettings.fs</Link>
     </Compile>
