@@ -19,6 +19,7 @@ open MongoDB.Driver.Core.Protocol
 type internal Commands =
         | Insert of InsertOperation * AsyncReplyChannel<seq<WriteConcernResult>>
         | Find of QueryOperation<BsonDocument> * AsyncReplyChannel<IEnumerable<BsonDocument>>
+        | Update of UpdateOperation * AsyncReplyChannel<WriteConcernResult>
         | Remove of RemoveOperation * AsyncReplyChannel<WriteConcernResult>
 
 type private CursorChannelProvider(channel : IServerChannel) =
@@ -106,6 +107,16 @@ type MongoAgent(settings : MongoSettings.AllSettings) =
                               (cursor :> IDisposable).Dispose()
                     } |> replyCh.Reply
 
+                | Update (op, replyCh) ->
+                    use node = cluster.SelectServer(ReadPreferenceServerSelector(ReadPreference.Primary),
+                                                    Timeout.InfiniteTimeSpan,
+                                                    CancellationToken.None)
+
+                    use channel = node.GetChannel(Timeout.InfiniteTimeSpan,
+                                                  CancellationToken.None)
+
+                    op.Execute(channel) |> replyCh.Reply
+
                 | Remove (op, replyCh) ->
                     use node = cluster.SelectServer(ReadPreferenceServerSelector(ReadPreference.Primary),
                                                     Timeout.InfiniteTimeSpan,
@@ -149,6 +160,14 @@ module CollectionOps =
                                          null, BsonDocumentSerializer.Instance, 0)
 
             x.Agent.PostAndAsyncReply(fun replyCh -> Find (queryOp, replyCh))
+
+        member x.Update db clctn query update =
+
+            let updateOp = UpdateOperation(MongoNamespace(db, clctn), BsonBinaryReaderSettings.Defaults,
+                                           BsonBinaryWriterSettings.Defaults, WriteConcern.Acknowledged,
+                                           query, update, UpdateFlags.None, false)
+
+            x.Agent.PostAndAsyncReply(fun replyCh -> Update (updateOp, replyCh))
 
         member x.Remove db clctn query =
 
