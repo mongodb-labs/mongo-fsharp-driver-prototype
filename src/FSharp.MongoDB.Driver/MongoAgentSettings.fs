@@ -1,9 +1,8 @@
 namespace FSharp.MongoDB.Driver
 
 open System
-open System.Threading
 
-module MongoSettings =
+module MongoAgentSettings =
 
     type StreamSettings = {
         ConnectTimeout : TimeSpan

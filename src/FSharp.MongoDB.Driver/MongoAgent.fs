@@ -40,7 +40,7 @@ type private CursorChannelProvider(channel : IServerChannel) =
                 member ch.Dispose() = GC.SuppressFinalize(ch)
         }
 
-type MongoAgent(settings : MongoSettings.AllSettings) =
+type MongoAgent(settings : MongoAgentSettings.AllSettings) =
 
     let eventPublisher = EventPublisher()
     let traceManager = new TraceManager()
