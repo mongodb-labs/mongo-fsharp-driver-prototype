@@ -24,11 +24,20 @@ type internal Commands =
 type private CursorChannelProvider(channel : IServerChannel) =
 
     interface IDisposable with
-        member x.Dispose() = channel.Dispose()
+        member x.Dispose() =
+            channel.Dispose()
+            GC.SuppressFinalize(x)
 
     interface ICursorChannelProvider with
         member x.Server = channel.Server
-        member x.GetChannel() = channel
+        member x.GetChannel() = {
+            new IServerChannel with
+                member __.Server = channel.Server
+                member __.DnsEndPoint = channel.DnsEndPoint
+                member __.Receive args = channel.Receive args
+                member __.Send packet = channel.Send packet
+                member ch.Dispose() = GC.SuppressFinalize(ch)
+        }
 
 type MongoAgent(settings : MongoSettings.AllSettings) =
 
@@ -88,11 +97,13 @@ type MongoAgent(settings : MongoSettings.AllSettings) =
 
                     let cursor = new CursorChannelProvider(channel)
 
-                    seq { use iter = op.Execute(cursor)
-                          while iter.MoveNext() do
-                              yield iter.Current
-
-                          (cursor :> IDisposable).Dispose()
+                    seq { let iter = op.Execute(cursor)
+                          try
+                              while iter.MoveNext() do
+                                  yield iter.Current
+                          finally
+                              iter.Dispose()
+                              (cursor :> IDisposable).Dispose()
                     } |> replyCh.Reply
 
                 | Remove (op, replyCh) ->
