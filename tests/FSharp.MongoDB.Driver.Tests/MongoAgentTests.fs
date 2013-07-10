@@ -31,7 +31,7 @@ module InsertOps =
                                  BsonElement("qty", BsonInt32(15)) ])
 
         let insertFlags = InsertFlags.None
-        let insertSettings = MongoOperationSettings.Defaults.insertSettings
+        let insertSettings = { MongoOperationSettings.Defaults.insertSettings with AssignIdOnInsert = false }
 
         agent.Insert db clctn doc insertFlags insertSettings |> Async.RunSynchronously |> ignore
 
