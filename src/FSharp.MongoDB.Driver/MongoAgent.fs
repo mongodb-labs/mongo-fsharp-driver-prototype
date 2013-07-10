@@ -17,10 +17,10 @@ open MongoDB.Driver.Core.Operations
 open MongoDB.Driver.Core.Protocol
 
 type internal Commands =
-        | Insert of InsertOperation * AsyncReplyChannel<seq<WriteConcernResult>>
-        | Find of QueryOperation<BsonDocument> * AsyncReplyChannel<IEnumerable<BsonDocument>>
-        | Update of UpdateOperation * AsyncReplyChannel<WriteConcernResult>
-        | Remove of RemoveOperation * AsyncReplyChannel<WriteConcernResult>
+   | Insert of InsertOperation * AsyncReplyChannel<seq<WriteConcernResult>>
+   | Find of QueryOperation<BsonDocument> * AsyncReplyChannel<seq<BsonDocument>>
+   | Update of UpdateOperation * AsyncReplyChannel<WriteConcernResult>
+   | Remove of RemoveOperation * AsyncReplyChannel<WriteConcernResult>
 
 type private CursorChannelProvider(channel : IServerChannel) =
 
@@ -30,14 +30,14 @@ type private CursorChannelProvider(channel : IServerChannel) =
             GC.SuppressFinalize(x)
 
     interface ICursorChannelProvider with
-        member x.Server = channel.Server
-        member x.GetChannel() = {
+        member __.Server = channel.Server
+        member __.GetChannel() = {
             new IServerChannel with
                 member __.Server = channel.Server
                 member __.DnsEndPoint = channel.DnsEndPoint
                 member __.Receive args = channel.Receive args
                 member __.Send packet = channel.Send packet
-                member ch.Dispose() = GC.SuppressFinalize(ch)
+                member x.Dispose() = GC.SuppressFinalize(x)
         }
 
 type MongoAgent(settings : MongoAgentSettings.AllSettings) =
@@ -142,37 +142,38 @@ module CollectionOps =
 
     type MongoAgent with
 
-        member x.BulkInsert db clctn (docs : seq<'DocType>) =
+        member x.BulkInsert db clctn (docs : seq<'DocType>) flags (settings : MongoOperationSettings.InsertSettings) =
 
-            let insertOp = InsertOperation(MongoNamespace(db, clctn), BsonBinaryReaderSettings.Defaults,
-                                           BsonBinaryWriterSettings.Defaults, WriteConcern.Acknowledged,
-                                           true, false, typeof<'DocType>, docs, InsertFlags.None, 0)
+            let insertOp = InsertOperation(MongoNamespace(db, clctn), settings.ReaderSettings,
+                                           settings.WriterSettings, settings.WriteConcern,
+                                           settings.AssignIdOnInsert, settings.CheckInsertDocuments,
+                                           typeof<'DocType>, docs, flags, 0)
 
             x.Agent.PostAndAsyncReply(fun replyCh -> Insert (insertOp, replyCh))
 
-        member x.Insert db clctn (doc : 'DocType) = x.BulkInsert db clctn [ doc ]
+        member x.Insert db clctn (doc : 'DocType) flags settings = x.BulkInsert db clctn [ doc ] flags settings
 
-        member x.Find db clctn query project =
+        member x.Find db clctn query project limit skip flags (settings : MongoOperationSettings.QuerySettings) =
 
-            let queryOp = QueryOperation(MongoNamespace(db, clctn), BsonBinaryReaderSettings.Defaults,
-                                         BsonBinaryWriterSettings.Defaults, 100, project,
-                                         QueryFlags.None, 0, null, query, ReadPreference.Nearest,
-                                         null, BsonDocumentSerializer.Instance, 0)
+            let queryOp = QueryOperation(MongoNamespace(db, clctn), settings.ReaderSettings,
+                                         settings.WriterSettings, settings.BatchSize, project,
+                                         flags, limit, null, query, ReadPreference.Nearest,
+                                         null, BsonDocumentSerializer.Instance, skip)
 
             x.Agent.PostAndAsyncReply(fun replyCh -> Find (queryOp, replyCh))
 
-        member x.Update db clctn query update =
+        member x.Update db clctn query update flags (settings : MongoOperationSettings.UpdateSettings) =
 
-            let updateOp = UpdateOperation(MongoNamespace(db, clctn), BsonBinaryReaderSettings.Defaults,
-                                           BsonBinaryWriterSettings.Defaults, WriteConcern.Acknowledged,
-                                           query, update, UpdateFlags.None, false)
+            let updateOp = UpdateOperation(MongoNamespace(db, clctn), settings.ReaderSettings,
+                                           settings.WriterSettings, settings.WriteConcern,
+                                           query, update, flags, settings.CheckUpdateDocument)
 
             x.Agent.PostAndAsyncReply(fun replyCh -> Update (updateOp, replyCh))
 
-        member x.Remove db clctn query =
+        member x.Remove db clctn query flags (settings : MongoOperationSettings.RemoveSettings) =
 
-            let removeOp = RemoveOperation(MongoNamespace(db, clctn), BsonBinaryReaderSettings.Defaults,
-                                           BsonBinaryWriterSettings.Defaults, WriteConcern.Acknowledged,
-                                           query, DeleteFlags.None)
+            let removeOp = RemoveOperation(MongoNamespace(db, clctn), settings.ReaderSettings,
+                                           settings.WriterSettings, settings.WriteConcern,
+                                           query, flags)
 
             x.Agent.PostAndAsyncReply(fun replyCh -> Remove (removeOp, replyCh))
