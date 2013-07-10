@@ -6,6 +6,11 @@ open MongoDB.Driver.Core
 
 module MongoOperationSettings =
 
+    type CommandSettings = {
+        ReaderSettings : BsonBinaryReaderSettings
+        WriterSettings : BsonBinaryWriterSettings
+    }
+
     type InsertSettings = {
         ReaderSettings : BsonBinaryReaderSettings
         WriterSettings : BsonBinaryWriterSettings
@@ -34,6 +39,11 @@ module MongoOperationSettings =
     }
 
     module Defaults =
+
+        let commandSettings = {
+            CommandSettings.ReaderSettings = BsonBinaryReaderSettings.Defaults
+            WriterSettings = BsonBinaryWriterSettings.Defaults
+        }
 
         let insertSettings = {
             ReaderSettings = BsonBinaryReaderSettings.Defaults

@@ -23,7 +23,7 @@ module InsertOps =
 
     [<TearDown>]
     let ``drop collection``() =
-        failwith "unsupported operation"
+        agent.DropCollection db clctn |> Async.RunSynchronously |> ignore
 
     [<Test>]
     let ``test insert without _id``() =

@@ -7,6 +7,7 @@ open System.Threading
 
 open MongoDB.Bson
 open MongoDB.Bson.IO
+open MongoDB.Bson.Serialization
 open MongoDB.Bson.Serialization.Serializers
 
 open MongoDB.Driver.Core
@@ -17,6 +18,10 @@ open MongoDB.Driver.Core.Operations
 open MongoDB.Driver.Core.Protocol
 
 type internal Commands =
+     // admin
+   | DropCollection of CommandOperation<CommandResult> * AsyncReplyChannel<CommandResult>
+
+     // crud
    | Insert of InsertOperation * AsyncReplyChannel<seq<WriteConcernResult>>
    | Find of QueryOperation<BsonDocument> * AsyncReplyChannel<seq<BsonDocument>>
    | Update of UpdateOperation * AsyncReplyChannel<WriteConcernResult>
@@ -78,6 +83,16 @@ type MongoAgent(settings : MongoAgentSettings.AllSettings) =
         let rec loop s = async {
             let! msg = inbox.Receive()
             match msg with
+                | DropCollection (op, replyCh) ->
+                    use node = cluster.SelectServer(ReadPreferenceServerSelector(ReadPreference.Primary),
+                                                    Timeout.InfiniteTimeSpan,
+                                                    CancellationToken.None)
+
+                    use channel = node.GetChannel(Timeout.InfiniteTimeSpan,
+                                                  CancellationToken.None)
+
+                    op.Execute(channel) |> replyCh.Reply
+
                 | Insert (op, replyCh) ->
                     use node = cluster.SelectServer(ReadPreferenceServerSelector(ReadPreference.Primary),
                                                     Timeout.InfiniteTimeSpan,
@@ -141,6 +156,18 @@ type MongoAgent(settings : MongoAgentSettings.AllSettings) =
 module CollectionOps =
 
     type MongoAgent with
+
+        member x.DropCollection db clctn =
+
+            let cmd = BsonDocument("drop", BsonString(clctn))
+            let flags = QueryFlags.None
+            let settings = MongoOperationSettings.Defaults.commandSettings
+
+            let commandOp = CommandOperation(db, settings.ReaderSettings, settings.WriterSettings,
+                                             cmd, flags, null, ReadPreference.Primary, null,
+                                             BsonSerializer.LookupSerializer(typeof<CommandResult>))
+
+            x.Agent.PostAndAsyncReply(fun replyCh -> DropCollection (commandOp, replyCh))
 
         member x.BulkInsert db clctn (docs : seq<'DocType>) flags (settings : MongoOperationSettings.InsertSettings) =
 
