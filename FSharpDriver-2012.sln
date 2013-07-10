@@ -7,6 +7,11 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.MongoDB.DriverUnitTe
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.MongoDB.Driver.TypeProvider", "src\FSharp.MongoDB.Driver\FSharp.MongoDB.Driver.TypeProvider.fsproj", "{0E5580EB-3FB4-40FA-8762-8C2BA10F4927}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.MongoDB.Driver.Tests", "tests\FSharp.MongoDB.Driver.Tests\FSharp.MongoDB.Driver.Tests.fsproj", "{45DDDBC9-5807-43ED-9CDF-A67067C50969}"
+	ProjectSection(ProjectDependencies) = postProject
+		{F2F775C4-7C17-4E02-A122-123514FC15C6} = {F2F775C4-7C17-4E02-A122-123514FC15C6}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -25,6 +30,10 @@ Global
 		{0E5580EB-3FB4-40FA-8762-8C2BA10F4927}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0E5580EB-3FB4-40FA-8762-8C2BA10F4927}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0E5580EB-3FB4-40FA-8762-8C2BA10F4927}.Release|Any CPU.Build.0 = Release|Any CPU
+		{45DDDBC9-5807-43ED-9CDF-A67067C50969}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{45DDDBC9-5807-43ED-9CDF-A67067C50969}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{45DDDBC9-5807-43ED-9CDF-A67067C50969}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{45DDDBC9-5807-43ED-9CDF-A67067C50969}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
