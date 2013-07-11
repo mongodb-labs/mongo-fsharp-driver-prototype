@@ -17,15 +17,19 @@ open MongoDB.Driver.Core.Events
 open MongoDB.Driver.Core.Operations
 open MongoDB.Driver.Core.Protocol
 
+type Result<'Success, 'Failure> =
+   | Response of 'Success
+   | Error of 'Failure
+
 type internal Commands =
      // admin
-   | DropCollection of CommandOperation<CommandResult> * AsyncReplyChannel<CommandResult>
+   | DropCollection of CommandOperation<CommandResult> * AsyncReplyChannel<Result<CommandResult, exn>>
 
      // crud
-   | Insert of InsertOperation * AsyncReplyChannel<seq<WriteConcernResult>>
-   | Find of QueryOperation<BsonDocument> * AsyncReplyChannel<seq<BsonDocument>>
-   | Update of UpdateOperation * AsyncReplyChannel<WriteConcernResult>
-   | Remove of RemoveOperation * AsyncReplyChannel<WriteConcernResult>
+   | Insert of InsertOperation * AsyncReplyChannel<Result<seq<WriteConcernResult>, exn>>
+   | Find of QueryOperation<BsonDocument> * AsyncReplyChannel<Result<seq<BsonDocument>, exn>>
+   | Update of UpdateOperation * AsyncReplyChannel<Result<WriteConcernResult, exn>>
+   | Remove of RemoveOperation * AsyncReplyChannel<Result<WriteConcernResult, exn>>
 
 type private CursorChannelProvider(channel : IServerChannel) =
 
@@ -91,7 +95,10 @@ type MongoAgent(settings : MongoAgentSettings.AllSettings) =
                     use channel = node.GetChannel(Timeout.InfiniteTimeSpan,
                                                   CancellationToken.None)
 
-                    op.Execute(channel) |> replyCh.Reply
+                    try
+                        Response(op.Execute(channel)) |> replyCh.Reply
+                    with
+                        exn -> Error(exn) |> replyCh.Reply
 
                 | Insert (op, replyCh) ->
                     use node = cluster.SelectServer(ReadPreferenceServerSelector(ReadPreference.Primary),
@@ -101,7 +108,10 @@ type MongoAgent(settings : MongoAgentSettings.AllSettings) =
                     use channel = node.GetChannel(Timeout.InfiniteTimeSpan,
                                                   CancellationToken.None)
 
-                    op.Execute(channel) |> replyCh.Reply
+                    try
+                        Response(op.Execute(channel)) |> replyCh.Reply
+                    with
+                        exn -> Error(exn) |> replyCh.Reply
 
                 | Find (op, replyCh) ->
                     use node = cluster.SelectServer(ReadPreferenceServerSelector(ReadPreference.Primary),
@@ -113,14 +123,17 @@ type MongoAgent(settings : MongoAgentSettings.AllSettings) =
 
                     let cursor = new CursorChannelProvider(channel)
 
-                    seq { let iter = op.Execute(cursor)
-                          try
-                              while iter.MoveNext() do
-                                  yield iter.Current
-                          finally
-                              iter.Dispose()
-                              (cursor :> IDisposable).Dispose()
-                    } |> replyCh.Reply
+                    try
+                        Response(seq { let iter = op.Execute(cursor)
+                                       try
+                                           while iter.MoveNext() do
+                                               yield iter.Current
+                                       finally
+                                           iter.Dispose()
+                                           (cursor :> IDisposable).Dispose()
+                        }) |> replyCh.Reply
+                    with
+                        exn -> Error(exn) |> replyCh.Reply
 
                 | Update (op, replyCh) ->
                     use node = cluster.SelectServer(ReadPreferenceServerSelector(ReadPreference.Primary),
@@ -130,7 +143,10 @@ type MongoAgent(settings : MongoAgentSettings.AllSettings) =
                     use channel = node.GetChannel(Timeout.InfiniteTimeSpan,
                                                   CancellationToken.None)
 
-                    op.Execute(channel) |> replyCh.Reply
+                    try
+                        Response(op.Execute(channel)) |> replyCh.Reply
+                    with
+                        exn -> Error(exn) |> replyCh.Reply
 
                 | Remove (op, replyCh) ->
                     use node = cluster.SelectServer(ReadPreferenceServerSelector(ReadPreference.Primary),
@@ -140,7 +156,10 @@ type MongoAgent(settings : MongoAgentSettings.AllSettings) =
                     use channel = node.GetChannel(Timeout.InfiniteTimeSpan,
                                                   CancellationToken.None)
 
-                    op.Execute(channel) |> replyCh.Reply
+                    try
+                        Response(op.Execute(channel)) |> replyCh.Reply
+                    with
+                        exn -> Error(exn) |> replyCh.Reply
 
             return! loop s
         }
@@ -155,6 +174,14 @@ type MongoAgent(settings : MongoAgentSettings.AllSettings) =
 [<AutoOpen>]
 module CollectionOps =
 
+    let handle op =
+        async {
+            let! res = op
+            match res with
+            | Response r -> return r
+            | Error exn -> return (raise exn)
+        } |> Async.StartAsTask |> Async.AwaitTask
+
     type MongoAgent with
 
         member x.DropCollection db clctn =
@@ -167,7 +194,7 @@ module CollectionOps =
                                              cmd, flags, null, ReadPreference.Primary, null,
                                              BsonSerializer.LookupSerializer(typeof<CommandResult>))
 
-            x.Agent.PostAndAsyncReply(fun replyCh -> DropCollection (commandOp, replyCh))
+            x.Agent.PostAndAsyncReply(fun replyCh -> DropCollection (commandOp, replyCh)) |> handle
 
         member x.BulkInsert db clctn (docs : seq<'DocType>) flags (settings : MongoOperationSettings.InsertSettings) =
 
@@ -176,7 +203,7 @@ module CollectionOps =
                                            settings.AssignIdOnInsert, settings.CheckInsertDocuments,
                                            typeof<'DocType>, docs, flags, 0)
 
-            x.Agent.PostAndAsyncReply(fun replyCh -> Insert (insertOp, replyCh))
+            x.Agent.PostAndAsyncReply(fun replyCh -> Insert (insertOp, replyCh)) |> handle
 
         member x.Insert db clctn (doc : 'DocType) flags settings = x.BulkInsert db clctn [ doc ] flags settings
 
@@ -187,7 +214,7 @@ module CollectionOps =
                                          flags, limit, null, query, ReadPreference.Nearest,
                                          null, BsonDocumentSerializer.Instance, skip)
 
-            x.Agent.PostAndAsyncReply(fun replyCh -> Find (queryOp, replyCh))
+            x.Agent.PostAndAsyncReply(fun replyCh -> Find (queryOp, replyCh)) |> handle
 
         member x.Update db clctn query update flags (settings : MongoOperationSettings.UpdateSettings) =
 
@@ -195,7 +222,7 @@ module CollectionOps =
                                            settings.WriterSettings, settings.WriteConcern,
                                            query, update, flags, settings.CheckUpdateDocument)
 
-            x.Agent.PostAndAsyncReply(fun replyCh -> Update (updateOp, replyCh))
+            x.Agent.PostAndAsyncReply(fun replyCh -> Update (updateOp, replyCh)) |> handle
 
         member x.Remove db clctn query flags (settings : MongoOperationSettings.RemoveSettings) =
 
@@ -203,4 +230,4 @@ module CollectionOps =
                                            settings.WriterSettings, settings.WriteConcern,
                                            query, flags)
 
-            x.Agent.PostAndAsyncReply(fun replyCh -> Remove (removeOp, replyCh))
+            x.Agent.PostAndAsyncReply(fun replyCh -> Remove (removeOp, replyCh)) |> handle
