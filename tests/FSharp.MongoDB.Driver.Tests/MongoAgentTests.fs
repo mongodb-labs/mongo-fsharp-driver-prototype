@@ -117,3 +117,48 @@ module InsertOps =
 
             // Check that found document contains no other fields than previously examined
             test <@ doc.ElementCount = found.ElementCount @>
+
+[<TestFixture>]
+module UpdateOps =
+
+    let clctn = "updateops"
+
+    [<TearDown>]
+    let ``drop collection``() =
+        agent.DropCollection db clctn |> Async.RunSynchronously |> ignore
+
+    [<Test>]
+    let ``test update single``() =
+        let doc = BsonDocument([ BsonElement("item", BsonString("card"));
+                                 BsonElement("qty", BsonInt32(15)) ])
+
+        let insertFlags = InsertFlags.None
+        let insertSettings = { MongoOperationSettings.Defaults.insertSettings with AssignIdOnInsert = false }
+
+        agent.Insert db clctn doc insertFlags insertSettings |> Async.RunSynchronously |> ignore
+
+        let updateQuery = BsonDocument()
+        let update = BsonDocument("$inc", BsonDocument("qty", BsonInt32(-1)))
+
+        let updateFlags = UpdateFlags.None
+        let updateSettings = MongoOperationSettings.Defaults.updateSettings
+
+        agent.Update db clctn updateQuery update updateFlags updateSettings |> Async.RunSynchronously |> ignore
+
+        let findQuery = BsonDocument()
+        let project = BsonDocument()
+
+        let queryFlags = QueryFlags.None
+        let querySettings = MongoOperationSettings.Defaults.querySettings
+
+        let res = agent.Find db clctn findQuery project 0 0 queryFlags querySettings |> Async.RunSynchronously |> Seq.toList
+
+        res.Length =? 1 // should only have single document in collection
+        let found = res.Head
+
+        // Check that found document contains correct values for elements of updated document
+        for elem in doc do
+            if elem.Name = "qty" then
+                test <@ elem.Value.AsInt32 - 1 = found.[elem.Name].AsInt32 @>
+            else
+                test <@ elem.Value = found.[elem.Name] @>
