@@ -162,3 +162,73 @@ module UpdateOps =
                 test <@ elem.Value.AsInt32 - 1 = found.[elem.Name].AsInt32 @>
             else
                 test <@ elem.Value = found.[elem.Name] @>
+
+    [<Test>]
+    let ``test update multi``() =
+        let docs = [ BsonDocument([ BsonElement("_id", BsonInt32(11));
+                                    BsonElement("item", BsonString("pencil"));
+                                    BsonElement("qty", BsonInt32(50));
+                                    BsonElement("type", BsonString("no.2")) ]);
+                     BsonDocument([ BsonElement("item", BsonString("pen"));
+                                    BsonElement("qty", BsonInt32(20)) ]);
+                     BsonDocument([ BsonElement("item", BsonString("eraser"));
+                                    BsonElement("qty", BsonInt32(25)) ]) ]
+
+        let insertFlags = InsertFlags.None
+        let insertSettings = MongoOperationSettings.Defaults.insertSettings
+
+        agent.BulkInsert db clctn docs insertFlags insertSettings |> Async.RunSynchronously |> ignore
+
+        let updateQuery = BsonDocument()
+        let update = BsonDocument("$inc", BsonDocument("qty", BsonInt32(-1)))
+
+        let updateFlags = UpdateFlags.Multi
+        let updateSettings = MongoOperationSettings.Defaults.updateSettings
+
+        agent.Update db clctn updateQuery update updateFlags updateSettings |> Async.RunSynchronously |> ignore
+
+        let findQuery = BsonDocument()
+        let project = BsonDocument()
+
+        let queryFlags = QueryFlags.None
+        let querySettings = MongoOperationSettings.Defaults.querySettings
+
+        let res = agent.Find db clctn findQuery project 0 0 queryFlags querySettings |> Async.RunSynchronously |> Seq.toList
+
+        res.Length =? docs.Length // should only have these document in collection
+        for (doc, found) in List.zip docs res do
+            // Check that found document contains correct values for elements of inserted document
+            for elem in doc do
+                if elem.Name = "qty" then
+                    test <@ elem.Value.AsInt32 - 1 = found.[elem.Name].AsInt32 @>
+                else
+                    test <@ elem.Value = found.[elem.Name] @>
+
+    [<Test>]
+    let ``test upsert``() =
+        let updateQuery = BsonDocument([ BsonElement("item", BsonString("card"));
+                                         BsonElement("qty", BsonInt32(15)) ])
+        let update = BsonDocument("$inc", BsonDocument("qty", BsonInt32(-1)))
+
+        let updateFlags = UpdateFlags.Upsert
+        let updateSettings = MongoOperationSettings.Defaults.updateSettings
+
+        agent.Update db clctn updateQuery update updateFlags updateSettings |> Async.RunSynchronously |> ignore
+
+        let findQuery = BsonDocument()
+        let project = BsonDocument()
+
+        let queryFlags = QueryFlags.None
+        let querySettings = MongoOperationSettings.Defaults.querySettings
+
+        let res = agent.Find db clctn findQuery project 0 0 queryFlags querySettings |> Async.RunSynchronously |> Seq.toList
+
+        res.Length =? 1 // should only have single document in collection
+        let found = res.Head
+
+        // Check that found document contains correct values for elements of updated document
+        for elem in updateQuery do
+            if elem.Name = "qty" then
+                test <@ elem.Value.AsInt32 - 1 = found.[elem.Name].AsInt32 @>
+            else
+                test <@ elem.Value = found.[elem.Name] @>
