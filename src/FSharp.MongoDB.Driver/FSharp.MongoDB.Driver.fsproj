@@ -64,6 +64,9 @@
     <Compile Include="MongoAgent.fs">
       <Link>MongoAgent.fs</Link>
     </Compile>
+    <Compile Include="MongoDatabase.fs">
+      <Link>MongoDatabase.fs</Link>
+    </Compile>
     <Compile Include="MongoCollection.fs">
       <Link>MongoCollection.fs</Link>
     </Compile>
