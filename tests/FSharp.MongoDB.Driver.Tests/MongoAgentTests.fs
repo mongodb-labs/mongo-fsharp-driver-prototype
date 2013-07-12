@@ -2,6 +2,7 @@
 
 open MongoDB.Bson
 
+open MongoDB.Driver.Core
 open MongoDB.Driver.Core.Protocol
 
 open NUnit.Framework
@@ -15,6 +16,93 @@ module Configuration =
     let agent = MongoAgent(MongoAgentSettings.Defaults.allSettings)
 
     let db = "fsharpdrivertests"
+
+[<TestFixture>]
+module Exceptions =
+
+    let clctn = "failureops"
+
+    [<TearDown>]
+    let ``drop collection``() =
+        agent.DropCollection db clctn |> Async.RunSynchronously |> ignore
+
+    [<Test>]
+    [<ExpectedException("System.ObjectDisposedException")>]
+    let ``fail when iterate through cursor twice``() =
+        let docs = [ BsonDocument([ BsonElement("_id", BsonInt32(11));
+                                    BsonElement("item", BsonString("pencil"));
+                                    BsonElement("qty", BsonInt32(50));
+                                    BsonElement("type", BsonString("no.2")) ]);
+                     BsonDocument([ BsonElement("item", BsonString("pen"));
+                                    BsonElement("qty", BsonInt32(20)) ]);
+                     BsonDocument([ BsonElement("item", BsonString("eraser"));
+                                    BsonElement("qty", BsonInt32(25)) ]) ]
+
+        let insertFlags = InsertFlags.None
+        let insertSettings = MongoOperationSettings.Defaults.insertSettings
+
+        agent.BulkInsert db clctn docs insertFlags insertSettings |> Async.RunSynchronously |> ignore
+
+        let query = BsonDocument()
+        let project = BsonDocument()
+
+        let queryFlags = QueryFlags.None
+        let querySettings = MongoOperationSettings.Defaults.querySettings
+
+        let res = agent.Find db clctn query project 0 0 queryFlags querySettings |> Async.RunSynchronously
+
+        for _ in [1 .. 2] do for _ in res do ()
+
+    [<Test>]
+    [<ExpectedException(typeof<MongoWriteConcernException>)>]
+    let ``fail when insert duplicate keys``() =
+        let id = 11 // make clear that all the documents use the same _id
+        let docs = [ BsonDocument([ BsonElement("_id", BsonInt32(id));
+                                    BsonElement("item", BsonString("pencil"));
+                                    BsonElement("qty", BsonInt32(50));
+                                    BsonElement("type", BsonString("no.2")) ]);
+                     BsonDocument([ BsonElement("_id", BsonInt32(id));
+                                    BsonElement("item", BsonString("pen"));
+                                    BsonElement("qty", BsonInt32(20)) ]);
+                     BsonDocument([ BsonElement("_id", BsonInt32(id));
+                                    BsonElement("item", BsonString("eraser"));
+                                    BsonElement("qty", BsonInt32(25)) ]) ]
+
+        let insertFlags = InsertFlags.None
+        let insertSettings = { MongoOperationSettings.Defaults.insertSettings with WriteConcern = WriteConcern.Acknowledged }
+
+        try
+            agent.BulkInsert db clctn docs insertFlags insertSettings |> Async.RunSynchronously |> ignore
+        with
+           | :? System.AggregateException as exn ->
+               for inner in exn.InnerExceptions do
+                   if inner.GetType() = typeof<MongoWriteConcernException> then raise inner
+               reraise() // unexpected (inner) exception
+
+    [<Test>]
+    [<ExpectedException(typeof<BsonSerializationException>)>]
+    let ``fail when invalid update command``() =
+        let doc = BsonDocument([ BsonElement("item", BsonString("card"));
+                                 BsonElement("qty", BsonInt32(15)) ])
+
+        let insertFlags = InsertFlags.None
+        let insertSettings = MongoOperationSettings.Defaults.insertSettings
+
+        agent.Insert db clctn doc insertFlags insertSettings |> Async.RunSynchronously |> ignore
+
+        let updateQuery = BsonDocument()
+        let update = BsonDocument("qty", BsonDocument("$inc", BsonInt32(-1))) // careful here
+
+        let updateFlags = UpdateFlags.None
+        let updateSettings = { MongoOperationSettings.Defaults.updateSettings with CheckUpdateDocument = true }
+
+        try
+            agent.Update db clctn updateQuery update updateFlags updateSettings |> Async.RunSynchronously |> ignore
+        with
+           | :? System.AggregateException as exn ->
+               for inner in exn.InnerExceptions do
+                   if inner.GetType() = typeof<BsonSerializationException> then raise inner
+               reraise() // unexpected (inner) exception
 
 [<TestFixture>]
 module InsertOps =
