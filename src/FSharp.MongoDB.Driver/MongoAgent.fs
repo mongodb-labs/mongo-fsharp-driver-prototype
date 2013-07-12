@@ -23,7 +23,7 @@ type Result<'Success, 'Failure> =
 
 type internal Commands =
      // admin
-   | DropCollection of CommandOperation<CommandResult> * AsyncReplyChannel<Result<CommandResult, exn>>
+   | Admin of CommandOperation<CommandResult> * AsyncReplyChannel<Result<CommandResult, exn>>
 
      // crud
    | Insert of InsertOperation * AsyncReplyChannel<Result<seq<WriteConcernResult>, exn>>
@@ -87,7 +87,7 @@ type MongoAgent(settings : MongoAgentSettings.AllSettings) =
         let rec loop s = async {
             let! msg = inbox.Receive()
             match msg with
-                | DropCollection (op, replyCh) ->
+                | Admin (op, replyCh) ->
                     use node = cluster.SelectServer(ReadPreferenceServerSelector(ReadPreference.Primary),
                                                     Timeout.InfiniteTimeSpan,
                                                     CancellationToken.None)
@@ -194,7 +194,7 @@ module CollectionOps =
                                              cmd, flags, null, ReadPreference.Primary, null,
                                              BsonSerializer.LookupSerializer(typeof<CommandResult>))
 
-            x.Agent.PostAndAsyncReply(fun replyCh -> DropCollection (commandOp, replyCh)) |> handle
+            x.Agent.PostAndAsyncReply(fun replyCh -> Admin (commandOp, replyCh)) |> handle
 
         member x.BulkInsert db clctn (docs : seq<'DocType>) flags (settings : MongoOperationSettings.InsertSettings) =
 
