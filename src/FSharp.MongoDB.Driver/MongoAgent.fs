@@ -172,6 +172,31 @@ type MongoAgent(settings : MongoAgentSettings.AllSettings) =
     member internal x.Agent = agent
 
 [<AutoOpen>]
+module DatabaseOps =
+
+    let handle op =
+        async {
+            let! res = op
+            match res with
+            | Response r -> return r
+            | Error exn -> return (raise exn)
+        } |> Async.StartAsTask |> Async.AwaitTask
+
+    type MongoAgent with
+
+        member x.DropDatabase db =
+
+            let cmd = BsonDocument("dropDatabase", BsonInt32(1))
+            let flags = QueryFlags.None
+            let settings = MongoOperationSettings.Defaults.commandSettings
+
+            let commandOp = CommandOperation(db, settings.ReaderSettings, settings.WriterSettings,
+                                             cmd, flags, null, ReadPreference.Primary, null,
+                                             BsonSerializer.LookupSerializer(typeof<CommandResult>))
+
+            x.Agent.PostAndAsyncReply(fun replyCh -> Admin (commandOp, replyCh)) |> handle
+
+[<AutoOpen>]
 module CollectionOps =
 
     let handle op =
