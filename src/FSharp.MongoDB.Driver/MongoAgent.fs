@@ -184,9 +184,7 @@ module DatabaseOps =
 
     type MongoAgent with
 
-        member x.DropDatabase db =
-
-            let cmd = BsonDocument("dropDatabase", BsonInt32(1))
+        member x.Run db cmd =
             let flags = QueryFlags.None
             let settings = MongoOperationSettings.Defaults.commandSettings
 
@@ -195,6 +193,11 @@ module DatabaseOps =
                                              BsonSerializer.LookupSerializer(typeof<CommandResult>))
 
             x.Agent.PostAndAsyncReply(fun replyCh -> Admin (commandOp, replyCh)) |> handle
+
+        member x.DropDatabase db =
+
+            let cmd = BsonDocument("dropDatabase", BsonInt32(1))
+            x.Run db cmd
 
 [<AutoOpen>]
 module CollectionOps =
@@ -212,14 +215,7 @@ module CollectionOps =
         member x.DropCollection db clctn =
 
             let cmd = BsonDocument("drop", BsonString(clctn))
-            let flags = QueryFlags.None
-            let settings = MongoOperationSettings.Defaults.commandSettings
-
-            let commandOp = CommandOperation(db, settings.ReaderSettings, settings.WriterSettings,
-                                             cmd, flags, null, ReadPreference.Primary, null,
-                                             BsonSerializer.LookupSerializer(typeof<CommandResult>))
-
-            x.Agent.PostAndAsyncReply(fun replyCh -> Admin (commandOp, replyCh)) |> handle
+            x.Run db cmd
 
         member x.BulkInsert db clctn (docs : seq<'DocType>) flags (settings : MongoOperationSettings.InsertSettings) =
 
