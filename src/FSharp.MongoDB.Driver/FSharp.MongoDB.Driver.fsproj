@@ -39,10 +39,6 @@
       <HintPath>..\..\lib\mongo-csharp-driver\MongoDB.Driver.Core\bin\Debug\MongoDB.Bson.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="MongoDB.Driver">
-      <HintPath>..\..\packages\mongocsharpdriver.1.8.1\lib\net35\MongoDB.Driver.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="MongoDB.Driver.Core">
       <HintPath>..\..\lib\mongo-csharp-driver\MongoDB.Driver.Core\bin\Debug\MongoDB.Driver.Core.dll</HintPath>
     </Reference>
@@ -52,9 +48,6 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Builders\QueryBuilder.fs">
-      <Link>Builders\QueryBuilder.fs</Link>
-    </Compile>
     <Compile Include="MongoOperationSettings.fs">
       <Link>MongoOperationSettings.fs</Link>
     </Compile>
