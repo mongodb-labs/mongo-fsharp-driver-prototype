@@ -1,13 +1,22 @@
 namespace FSharp.MongoDB.Driver
 
+open System.Collections
+open System.Collections.Generic
+
 open MongoDB.Bson
+open MongoDB.Driver.Core.Protocol
 
 [<AutoOpen>]
 module Fluent =
 
+    type Internals = {
+        Agent : MongoAgent
+        Database : string
+        Collection : string
+    }
+
     type Scope = {
-        Database : string option
-        Collection : string option
+        Internals : Internals option
 
         Query : BsonDocument option
         Project : BsonDocument option
@@ -15,11 +24,46 @@ module Fluent =
 
         Limit : int
         Skip : int
-    }
+    } with
+        member x.Get (?flags0) =
+            let flags = defaultArg flags0 QueryFlags.None
+
+            match x.Internals with
+            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+                let query =
+                    match x.Query with
+                    | Some x -> BsonDocument("$query", x)
+                    | None -> failwith "unset query"
+
+                let project =
+                    match x.Project with
+                    | Some x -> x
+                    | None -> null
+
+                match x.Sort with
+                | Some x -> query.Add("$orderby", x) |> ignore
+                | None -> ()
+
+                let limit = x.Limit
+                let skip = x.Skip
+
+                let settings = MongoOperationSettings.Defaults.querySettings
+
+                async {
+                    let! cursor = agent.Find db clctn query project limit skip flags settings
+                    return cursor.GetEnumerator()
+                }
+
+            | None -> failwith "unset collection"
+
+        interface IEnumerable<BsonDocument> with
+            member x.GetEnumerator() = x.Get() |> Async.RunSynchronously
+
+        interface IEnumerable with
+            override x.GetEnumerator() = (x :> IEnumerable<BsonDocument>).GetEnumerator() :> IEnumerator
 
     let defaultScope = {
-        Database = None
-        Collection = None
+        Internals = None
 
         Query = None
         Project = None
@@ -58,8 +102,7 @@ type MongoCollection(agent : MongoAgent, db, clctn) =
     member x.Find (?query0 : BsonDocument) =
         let query = defaultArg query0 <| BsonDocument()
 
-        { defaultScope with Database = Some db
-                            Collection = Some clctn
+        { defaultScope with Internals = Some { Agent = agent; Database = db; Collection = clctn }
                             Query = Some query }
 
     member __.Update query update = agent.Update db clctn query update
