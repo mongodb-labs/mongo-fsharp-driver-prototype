@@ -4,6 +4,17 @@ mongo-fsharp-driver-prototype
 Make using MongoDB from F# more natural by defining new operators that
 are more idiomatic to the language.
 
+Building
+--------
+
+Currently the [Core .NET driver](https://github.com/mongodb/mongo-csharp-driver/tree/v2.0)
+is unavailable on NuGet, so we have set up the branch as a submodule.
+This is intended to change in the future.
+
+    git submodule update --init
+    <compile mongo-csharp-driver>
+    <compile mongo-fsharp-driver-prototype>
+
 Ideas for more convenient query writing
 ---------------------------------------
 
