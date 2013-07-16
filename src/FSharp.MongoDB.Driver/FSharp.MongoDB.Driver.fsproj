@@ -65,7 +65,6 @@
     <Compile Include="MongoCollection.fs">
       <Link>MongoCollection.fs</Link>
     </Compile>
-    <None Include="packages.config" />
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
