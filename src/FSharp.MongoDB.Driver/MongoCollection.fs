@@ -4,6 +4,8 @@ open System.Collections
 open System.Collections.Generic
 
 open MongoDB.Bson
+
+open MongoDB.Driver.Core
 open MongoDB.Driver.Core.Protocol
 
 [<AutoOpen>]
@@ -15,6 +17,42 @@ module Fluent =
         Collection : string
     }
 
+    type QueryOptions = {
+        Comment : string option
+        Hint : BsonDocument option
+        MaxScan : int option
+        Max : obj option
+        Min : obj option
+        Snapshot : bool option
+    }
+
+    let defaultQueryOptions = {
+        Comment = None
+        Hint = None
+        MaxScan = None
+        Max = None
+        Min = None
+        Snapshot = None
+    }
+
+    let makeQueryDoc query sort (options : QueryOptions) =
+        let addElem name value (doc : BsonDocument) =
+            match value with
+            | Some x -> doc.Add(name, BsonValue.Create(x))
+            | None -> doc
+
+        match query with
+        | Some x ->
+            BsonDocument("$query", x)
+            |> addElem "$orderby" sort
+            |> addElem "$comment" options.Comment
+            |> addElem "$hint" options.Hint
+            |> addElem "$maxScan" options.MaxScan
+            |> addElem "$max" options.Max
+            |> addElem "$min" options.Min
+            |> addElem "$snapshot" options.Snapshot
+        | None -> failwith "unset query"
+
     type Scope = {
         Internals : Internals option
 
@@ -24,25 +62,20 @@ module Fluent =
 
         Limit : int
         Skip : int
+
+        QueryOptions : QueryOptions
     } with
         member x.Get (?flags0) =
             let flags = defaultArg flags0 QueryFlags.None
 
             match x.Internals with
             | Some  { Agent = agent; Database = db; Collection = clctn } ->
-                let query =
-                    match x.Query with
-                    | Some x -> BsonDocument("$query", x)
-                    | None -> failwith "unset query"
+                let query = makeQueryDoc x.Query x.Sort x.QueryOptions
 
                 let project =
                     match x.Project with
                     | Some x -> x
                     | None -> null
-
-                match x.Sort with
-                | Some x -> query.Add("$orderby", x) |> ignore
-                | None -> ()
 
                 let limit = x.Limit
                 let skip = x.Skip
@@ -71,6 +104,8 @@ module Fluent =
 
         Limit = 0
         Skip = 0
+
+        QueryOptions = defaultQueryOptions
     }
 
     [<RequireQualifiedAccess>]
@@ -90,6 +125,9 @@ module Fluent =
 
         let skip n scope =
             { scope with Skip = n }
+
+        let withQueryOptions options scope =
+            { scope with QueryOptions = options }
 
 type MongoCollection(agent : MongoAgent, db, clctn) =
 
