@@ -1,35 +1,30 @@
 namespace FSharp.MongoDB.Driver
 
-type MongoCollection(agent : MongoAgent, db, clctn) =
+open MongoDB.Bson
 
-    member __.Drop () = agent.DropCollection db clctn
-
-    member __.BulkInsert docs = agent.BulkInsert db clctn docs
-
-    member __.Insert doc = agent.Insert db clctn doc
-
-    member __.Find query project = agent.Find db clctn query project
-
-    member __.Update query update = agent.Update db clctn query update
-
-    member __.Remove query = agent.Remove db clctn query
-
+[<AutoOpen>]
 module Fluent =
 
-    open MongoDB.Bson
-
     type Scope = {
+        Database : string option
+        Collection : string option
+
         Query : BsonDocument option
         Project : BsonDocument option
         Sort : BsonDocument option
+
         Limit : int
         Skip : int
     }
 
     let defaultScope = {
+        Database = None
+        Collection = None
+
         Query = None
         Project = None
         Sort = None
+
         Limit = 0
         Skip = 0
     }
@@ -52,9 +47,21 @@ module Fluent =
         let skip n scope =
             { scope with Skip = n }
 
-    type MongoCollection with
+type MongoCollection(agent : MongoAgent, db, clctn) =
 
-        member x.Find (?query0 : BsonDocument) =
-            let query = defaultArg query0 <| BsonDocument()
+    member __.Drop () = agent.DropCollection db clctn
 
-            { defaultScope with Query = Some query }
+    member __.BulkInsert docs = agent.BulkInsert db clctn docs
+
+    member __.Insert doc = agent.Insert db clctn doc
+
+    member x.Find (?query0 : BsonDocument) =
+        let query = defaultArg query0 <| BsonDocument()
+
+        { defaultScope with Database = Some db
+                            Collection = Some clctn
+                            Query = Some query }
+
+    member __.Update query update = agent.Update db clctn query update
+
+    member __.Remove query = agent.Remove db clctn query
