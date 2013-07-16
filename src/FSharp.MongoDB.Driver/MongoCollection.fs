@@ -129,6 +129,47 @@ module Fluent =
         let withQueryOptions options scope =
             { scope with QueryOptions = options }
 
+        let remove (scope : Scope) =
+            match scope.Internals with
+            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+                // Raise error if sort has been specified
+                if scope.Sort.IsSome then failwith "sort has been specified"
+
+                // Raise error if limit has been specified (as other than 1)
+                if scope.Limit <> 0 && scope.Limit <> 1 then failwith "limit has been specified"
+
+                // Raise error if skip has been specified
+                if scope.Skip <> 0 then failwith "skip has been specified"
+
+                let query = makeQueryDoc scope.Query None scope.QueryOptions
+
+                let flags = DeleteFlags.None
+                let settings = MongoOperationSettings.Defaults.removeSettings
+
+                agent.Remove db clctn query flags settings
+
+            | None -> failwith "unset collection"
+
+        let removeOne (scope : Scope) =
+            match scope.Internals with
+            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+                // Raise error if sort has been specified
+                if scope.Sort.IsSome then failwith "sort has been specified"
+
+                // Ignore limit
+
+                // Raise error if skip has been specified
+                if scope.Skip <> 0 then failwith "skip has been specified"
+
+                let query = makeQueryDoc scope.Query None scope.QueryOptions
+
+                let flags = DeleteFlags.Single
+                let settings = MongoOperationSettings.Defaults.removeSettings
+
+                agent.Remove db clctn query flags settings
+
+            | None -> failwith "unset collection"
+
 type MongoCollection(agent : MongoAgent, db, clctn) =
 
     member __.Drop () = agent.DropCollection db clctn
