@@ -271,6 +271,34 @@ module Fluent =
 
             | None -> failwith "unset collection"
 
+        let explain (scope : Scope) =
+            match scope.Internals with
+            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+                let query = makeQueryDoc scope.Query scope.Sort scope.QueryOptions
+
+                let project =
+                    match scope.Project with
+                    | Some x -> x
+                    | None -> null
+
+                query.Add("$explain", BsonInt32(1)) |> ignore
+
+                let limit = scope.Limit
+                let skip = scope.Skip
+
+                let flags = QueryFlags.None
+                let settings = MongoOperationSettings.Defaults.querySettings
+
+                async {
+                    let! res = agent.Find db clctn query project limit skip flags settings
+                    use iter = res.GetEnumerator()
+
+                    if not (iter.MoveNext()) then raise <| MongoOperationException("explain command missing response document")
+                    return iter.Current
+                }
+
+            | None -> failwith "unset collection"
+
 type MongoCollection(agent : MongoAgent, db, clctn) =
 
     member __.Drop () = agent.DropCollection db clctn
