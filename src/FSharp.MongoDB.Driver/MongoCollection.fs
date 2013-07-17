@@ -129,6 +129,25 @@ module Fluent =
         let withQueryOptions options scope =
             { scope with QueryOptions = options }
 
+        let count (scope : Scope) =
+            match scope.Internals with
+            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+                let cmd = BsonDocument("count", BsonString(clctn))
+
+                match scope.Query with
+                | Some x -> cmd.Add("query", x) |> ignore
+                | None -> ()
+
+                let limit = scope.Limit
+                let skip = scope.Skip
+
+                cmd.AddRange([ BsonElement("limit", BsonInt32(limit))
+                               BsonElement("skip", BsonInt32(skip)) ]) |> ignore
+
+                agent.Run db cmd
+
+            | None -> failwith "unset collection"
+
         let remove (scope : Scope) =
             match scope.Internals with
             | Some  { Agent = agent; Database = db; Collection = clctn } ->
