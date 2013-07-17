@@ -170,6 +170,47 @@ module Fluent =
 
             | None -> failwith "unset collection"
 
+        let update update (scope : Scope) =
+            match scope.Internals with
+            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+                // Raise error if sort has been specified
+                if scope.Sort.IsSome then failwith "sort has been specified"
+
+                // Raise error if limit has been specified (as other than 1)
+                if scope.Limit <> 0 && scope.Limit <> 1 then failwith "limit has been specified"
+
+                // Raise error if skip has been specified
+                if scope.Skip <> 0 then failwith "skip has been specified"
+
+                let query = makeQueryDoc scope.Query None scope.QueryOptions
+
+                let flags = UpdateFlags.Multi
+                let settings = { MongoOperationSettings.Defaults.updateSettings with CheckUpdateDocument = true }
+
+                agent.Update db clctn query update flags settings
+
+            | None -> failwith "unset collection"
+
+        let updateOne update (scope : Scope) =
+            match scope.Internals with
+            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+                // Raise error if sort has been specified
+                if scope.Sort.IsSome then failwith "sort has been specified"
+
+                // Ignore limit
+
+                // Raise error if skip has been specified
+                if scope.Skip <> 0 then failwith "skip has been specified"
+
+                let query = makeQueryDoc scope.Query None scope.QueryOptions
+
+                let flags = UpdateFlags.None
+                let settings = { MongoOperationSettings.Defaults.updateSettings with CheckUpdateDocument = true }
+
+                agent.Update db clctn query update flags settings
+
+            | None -> failwith "unset collection"
+
 type MongoCollection(agent : MongoAgent, db, clctn) =
 
     member __.Drop () = agent.DropCollection db clctn
