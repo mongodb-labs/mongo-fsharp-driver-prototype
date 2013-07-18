@@ -299,6 +299,28 @@ module Fluent =
 
             | None -> failwith "unset collection"
 
+        let textSearch text (scope : Scope) =
+            match scope.Internals with
+            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+                let cmd = BsonDocument("text", BsonString(clctn))
+
+                cmd.Add("search", BsonString(text)) |> ignore
+
+                match scope.Query with
+                | Some x -> cmd.Add("filter", x) |> ignore
+                | None -> ()
+
+                match scope.Project with
+                | Some x -> cmd.Add("project", x) |> ignore
+                | None -> ()
+
+                let limit = scope.Limit
+                cmd.Add("limit", BsonInt32(limit)) |> ignore
+
+                agent.Run db cmd
+
+            | None -> failwith "unset collection"
+
 type MongoCollection(agent : MongoAgent, db, clctn) =
 
     member __.Drop () = agent.DropCollection db clctn
