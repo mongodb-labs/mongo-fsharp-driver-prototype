@@ -4,6 +4,7 @@ open System.Collections
 open System.Collections.Generic
 
 open MongoDB.Bson
+open MongoDB.Bson.Serialization
 
 open MongoDB.Driver.Core
 open MongoDB.Driver.Core.Protocol
@@ -363,16 +364,45 @@ type MongoCollection(agent : MongoAgent, db, clctn) =
 
     member __.Drop () = agent.DropCollection db clctn
 
-    member __.BulkInsert docs = agent.BulkInsert db clctn docs
+    member __.Insert (doc, ?options0 : WriteOptions) =
+        let options = defaultArg options0 defaultWriteOptions
 
-    member __.Insert doc = agent.Insert db clctn doc
+        let flags = InsertFlags.None
+        let settings = { MongoOperationSettings.Defaults.insertSettings with WriteConcern = options.WriteConcern }
 
-    member x.Find (?query0 : BsonDocument) =
+        agent.Insert db clctn doc flags settings
+
+    member __.Find (?query0 : BsonDocument) =
         let query = defaultArg query0 <| BsonDocument()
 
         { defaultScope with Internals = Some { Agent = agent; Database = db; Collection = clctn }
                             Query = Some query }
 
-    member __.Update query update = agent.Update db clctn query update
+    member x.Save (doc, ?options0 : WriteOptions) =
+        let options = defaultArg options0 defaultWriteOptions
 
-    member __.Remove query = agent.Remove db clctn query
+        let idProvider =
+            match BsonSerializer.LookupSerializer(doc.GetType()) with
+            | :? IBsonIdProvider as x -> x
+            | _ -> failwithf "could not find id provider for document type %O" <| doc.GetType()
+
+        let id = ref null
+        let idType = ref null
+        let idGenerator = ref null
+
+        if idProvider.GetDocumentId(doc, id, idType, idGenerator) then // document has an id
+            // Perform an upsert
+            let query = BsonDocument("_id", BsonValue.Create(!id))
+            let update = doc
+
+            let flags = UpdateFlags.Upsert
+            let settings = { MongoOperationSettings.Defaults.updateSettings with WriteConcern = options.WriteConcern }
+
+            agent.Update db clctn query update flags settings
+        else                                                           // document does not have an id
+            // Perform an insert
+            let flags = InsertFlags.None
+            let settings = { MongoOperationSettings.Defaults.insertSettings with WriteConcern = options.WriteConcern
+                                                                                 AssignIdOnInsert = true}
+
+            agent.Insert db clctn doc flags settings
