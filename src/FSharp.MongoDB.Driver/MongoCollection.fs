@@ -35,6 +35,18 @@ module Fluent =
         Snapshot = None
     }
 
+    type WriteOptions = {
+        Isolated : bool
+        WriteConcern : WriteConcern
+        Others :  (string * obj) list
+    }
+
+    let defaultWriteOptions = {
+        Isolated = false
+        WriteConcern = WriteConcern.Acknowledged
+        Others = []
+    }
+
     type TextSearchOptions = {
         Language : string option
     }
@@ -81,6 +93,7 @@ module Fluent =
         Skip : int
 
         QueryOptions : QueryOptions
+        WriteOptions : WriteOptions
     } with
         member x.Get (?flags0) =
             let flags = defaultArg flags0 QueryFlags.None
@@ -123,6 +136,7 @@ module Fluent =
         Skip = 0
 
         QueryOptions = defaultQueryOptions
+        WriteOptions = defaultWriteOptions
     }
 
     [<RequireQualifiedAccess>]
@@ -145,6 +159,9 @@ module Fluent =
 
         let withQueryOptions options scope =
             { scope with QueryOptions = options }
+
+        let withWriteOptions options scope =
+            { scope with WriteOptions = options }
 
         let count (scope : Scope) =
             match scope.Internals with
@@ -178,9 +195,10 @@ module Fluent =
                 if scope.Skip <> 0 then failwith "skip has been specified"
 
                 let query = makeQueryDoc scope.Query None scope.QueryOptions
+                if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
 
                 let flags = DeleteFlags.None
-                let settings = MongoOperationSettings.Defaults.removeSettings
+                let settings = { MongoOperationSettings.Defaults.removeSettings with WriteConcern = scope.WriteOptions.WriteConcern }
 
                 agent.Remove db clctn query flags settings
 
@@ -198,9 +216,10 @@ module Fluent =
                 if scope.Skip <> 0 then failwith "skip has been specified"
 
                 let query = makeQueryDoc scope.Query None scope.QueryOptions
+                if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
 
                 let flags = DeleteFlags.Single
-                let settings = MongoOperationSettings.Defaults.removeSettings
+                let settings = { MongoOperationSettings.Defaults.removeSettings with WriteConcern = scope.WriteOptions.WriteConcern }
 
                 agent.Remove db clctn query flags settings
 
@@ -219,9 +238,11 @@ module Fluent =
                 if scope.Skip <> 0 then failwith "skip has been specified"
 
                 let query = makeQueryDoc scope.Query None scope.QueryOptions
+                if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
 
                 let flags = UpdateFlags.Multi
-                let settings = { MongoOperationSettings.Defaults.updateSettings with CheckUpdateDocument = true }
+                let settings = { MongoOperationSettings.Defaults.updateSettings with CheckUpdateDocument = true
+                                                                                     WriteConcern = scope.WriteOptions.WriteConcern }
 
                 agent.Update db clctn query update flags settings
 
@@ -241,7 +262,8 @@ module Fluent =
                 let query = makeQueryDoc scope.Query None scope.QueryOptions
 
                 let flags = UpdateFlags.None
-                let settings = { MongoOperationSettings.Defaults.updateSettings with CheckUpdateDocument = true }
+                let settings = { MongoOperationSettings.Defaults.updateSettings with CheckUpdateDocument = true
+                                                                                     WriteConcern = scope.WriteOptions.WriteConcern }
 
                 agent.Update db clctn query update flags settings
 
@@ -260,9 +282,11 @@ module Fluent =
                 if scope.Skip <> 0 then failwith "skip has been specified"
 
                 let query = makeQueryDoc scope.Query None scope.QueryOptions
+                if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
 
                 let flags = UpdateFlags.Multi
-                let settings = { MongoOperationSettings.Defaults.updateSettings with CheckUpdateDocument = false }
+                let settings = { MongoOperationSettings.Defaults.updateSettings with CheckUpdateDocument = false
+                                                                                     WriteConcern = scope.WriteOptions.WriteConcern }
 
                 agent.Update db clctn query update flags settings
 
@@ -282,7 +306,8 @@ module Fluent =
                 let query = makeQueryDoc scope.Query None scope.QueryOptions
 
                 let flags = UpdateFlags.None
-                let settings = { MongoOperationSettings.Defaults.updateSettings with CheckUpdateDocument = false }
+                let settings = { MongoOperationSettings.Defaults.updateSettings with CheckUpdateDocument = false
+                                                                                     WriteConcern = scope.WriteOptions.WriteConcern }
 
                 agent.Update db clctn query update flags settings
 
