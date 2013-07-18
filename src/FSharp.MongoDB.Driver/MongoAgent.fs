@@ -226,7 +226,14 @@ module CollectionOps =
 
             x.Agent.PostAndAsyncReply(fun replyCh -> Insert (insertOp, replyCh)) |> handle
 
-        member x.Insert db clctn (doc : 'DocType) flags settings = x.BulkInsert db clctn [ doc ] flags settings
+        member x.Insert db clctn (doc : 'DocType) flags settings =
+            async {
+                let! res = x.BulkInsert db clctn [ doc ] flags settings
+                use iter = res.GetEnumerator()
+
+                if not (iter.MoveNext()) then raise <| MongoOperationException("insert command missing write concern result")
+                return iter.Current
+            }
 
         member x.Find db clctn query project limit skip flags (settings : MongoOperationSettings.QuerySettings) =
 
