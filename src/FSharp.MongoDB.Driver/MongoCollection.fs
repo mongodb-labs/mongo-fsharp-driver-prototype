@@ -35,6 +35,10 @@ module Fluent =
         Snapshot = None
     }
 
+    type TextSearchOptions = {
+        Language : string option
+    }
+
     let makeQueryDoc query sort (options : QueryOptions) =
         let addElem name value (doc : BsonDocument) =
             match value with
@@ -52,6 +56,19 @@ module Fluent =
             |> addElem "$min" options.Min
             |> addElem "$snapshot" options.Snapshot
         | None -> failwith "unset query"
+
+    let makeTextSearchDoc clctn text query project limit (options : TextSearchOptions) =
+        let addElem name value (doc : BsonDocument) =
+            match value with
+            | Some x -> doc.Add(name, BsonValue.Create(x))
+            | None -> doc
+
+        BsonDocument([ BsonElement("text", BsonString(clctn))
+                       BsonElement("search", BsonString(text))
+                       BsonElement("limit", BsonInt32(limit)) ])
+        |> addElem "filter" query
+        |> addElem "project" project
+        |> addElem "language" options.Language
 
     type Scope = {
         Internals : Internals option
@@ -302,20 +319,16 @@ module Fluent =
         let textSearch text (scope : Scope) =
             match scope.Internals with
             | Some  { Agent = agent; Database = db; Collection = clctn } ->
-                let cmd = BsonDocument("text", BsonString(clctn))
+                let cmd = makeTextSearchDoc clctn text scope.Query scope.Project scope.Limit { Language = None }
 
-                cmd.Add("search", BsonString(text)) |> ignore
+                agent.Run db cmd
 
-                match scope.Query with
-                | Some x -> cmd.Add("filter", x) |> ignore
-                | None -> ()
+            | None -> failwith "unset collection"
 
-                match scope.Project with
-                | Some x -> cmd.Add("project", x) |> ignore
-                | None -> ()
-
-                let limit = scope.Limit
-                cmd.Add("limit", BsonInt32(limit)) |> ignore
+        let textSearchWithOptions text (options : TextSearchOptions) (scope : Scope) =
+            match scope.Internals with
+            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+                let cmd = makeTextSearchDoc clctn text scope.Query scope.Project scope.Limit options
 
                 agent.Run db cmd
 
