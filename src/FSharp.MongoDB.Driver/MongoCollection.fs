@@ -83,8 +83,9 @@ module Fluent =
         |> addElem "project" project
         |> addElem "language" options.Language
 
-    type Scope = {
+    type Scope<'DocType> = {
         Internals : Internals option
+        Collection : MongoCollection<'DocType>
 
         Query : BsonDocument option
         Project : BsonDocument option
@@ -115,30 +116,89 @@ module Fluent =
 
                 async {
                     let! cursor = agent.Find db clctn query project limit skip flags settings
-                    return cursor.GetEnumerator()
+                    let iter = cursor.GetEnumerator()
+
+                    return {
+                        new IEnumerator<'DocType> with
+                            // TODO: perform deserialization
+                            member __.Current = unbox iter.Current
+
+                        interface IEnumerator with
+                            // TODO: perform deserialization
+                            member __.Current = unbox iter.Current
+                            member __.MoveNext() = iter.MoveNext()
+                            member __.Reset() = iter.Reset()
+
+                        interface System.IDisposable with
+                            member __.Dispose() = iter.Dispose()
+                    }
                 }
 
             | None -> failwith "unset collection"
 
-        interface IEnumerable<BsonDocument> with
+        interface IEnumerable<'DocType> with
             member x.GetEnumerator() = x.Get() |> Async.RunSynchronously
 
         interface IEnumerable with
-            override x.GetEnumerator() = (x :> IEnumerable<BsonDocument>).GetEnumerator() :> IEnumerator
+            override x.GetEnumerator() = (x :> IEnumerable<'DocType>).GetEnumerator() :> IEnumerator
 
-    let defaultScope = {
-        Internals = None
+    and MongoCollection<'DocType>(agent : MongoAgent, db, clctn) =
 
-        Query = None
-        Project = None
-        Sort = None
+        member __.Drop () = agent.DropCollection db clctn
 
-        Limit = 0
-        Skip = 0
+        member __.Insert (doc, ?options0 : WriteOptions) =
+            let options = defaultArg options0 defaultWriteOptions
 
-        QueryOptions = defaultQueryOptions
-        WriteOptions = defaultWriteOptions
-    }
+            let flags = InsertFlags.None
+            let settings = { MongoOperationSettings.Defaults.insertSettings with WriteConcern = options.WriteConcern }
+
+            agent.Insert db clctn doc flags settings
+
+        member x.Find (?query0 : BsonDocument) =
+            let query = defaultArg query0 <| BsonDocument()
+
+            { Internals = Some { Agent = agent; Database = db; Collection = clctn }
+              Collection = x
+
+              Query = Some query
+              Project = None
+              Sort = None
+
+              Limit = 0
+              Skip = 0
+
+              QueryOptions = defaultQueryOptions
+              WriteOptions = defaultWriteOptions
+            }
+
+        member x.Save (doc, ?options0 : WriteOptions) =
+            let options = defaultArg options0 defaultWriteOptions
+
+            let idProvider =
+                match BsonSerializer.LookupSerializer(doc.GetType()) with
+                | :? IBsonIdProvider as x -> x
+                | _ -> failwithf "could not find id provider for document type %O" <| doc.GetType()
+
+            let id = ref null
+            let idType = ref null
+            let idGenerator = ref null
+
+            if idProvider.GetDocumentId(doc, id, idType, idGenerator) then // document has an id
+                // Perform an upsert
+                let query = BsonDocument("_id", BsonValue.Create(!id))
+                let update = doc
+
+                let flags = UpdateFlags.Upsert
+                let settings = { MongoOperationSettings.Defaults.updateSettings with WriteConcern = options.WriteConcern }
+
+                agent.Update db clctn query update flags settings
+            else                                                           // document does not have an id
+                // Perform an insert
+                let flags = InsertFlags.None
+                let settings = { MongoOperationSettings.Defaults.insertSettings with WriteConcern = options.WriteConcern
+                                                                                     AssignIdOnInsert = true}
+
+                agent.Insert db clctn doc flags settings
 
     [<RequireQualifiedAccess>]
     module Query =
@@ -164,7 +224,7 @@ module Fluent =
         let withWriteOptions options scope =
             { scope with WriteOptions = options }
 
-        let count (scope : Scope) =
+        let count (scope : Scope<'DocType>) =
             match scope.Internals with
             | Some  { Agent = agent; Database = db; Collection = clctn } ->
                 let cmd = BsonDocument("count", BsonString(clctn))
@@ -183,7 +243,7 @@ module Fluent =
 
             | None -> failwith "unset collection"
 
-        let remove (scope : Scope) =
+        let remove (scope : Scope<'DocType>) =
             match scope.Internals with
             | Some  { Agent = agent; Database = db; Collection = clctn } ->
                 // Raise error if sort has been specified
@@ -205,7 +265,7 @@ module Fluent =
 
             | None -> failwith "unset collection"
 
-        let removeOne (scope : Scope) =
+        let removeOne (scope : Scope<'DocType>) =
             match scope.Internals with
             | Some  { Agent = agent; Database = db; Collection = clctn } ->
                 // Raise error if sort has been specified
@@ -226,7 +286,7 @@ module Fluent =
 
             | None -> failwith "unset collection"
 
-        let update update (scope : Scope) =
+        let update update (scope : Scope<'DocType>) =
             match scope.Internals with
             | Some  { Agent = agent; Database = db; Collection = clctn } ->
                 // Raise error if sort has been specified
@@ -249,7 +309,7 @@ module Fluent =
 
             | None -> failwith "unset collection"
 
-        let updateOne update (scope : Scope) =
+        let updateOne update (scope : Scope<'DocType>) =
             match scope.Internals with
             | Some  { Agent = agent; Database = db; Collection = clctn } ->
                 // Raise error if sort has been specified
@@ -270,7 +330,7 @@ module Fluent =
 
             | None -> failwith "unset collection"
 
-        let replace update (scope : Scope) =
+        let replace update (scope : Scope<'DocType>) =
             match scope.Internals with
             | Some  { Agent = agent; Database = db; Collection = clctn } ->
                 // Raise error if sort has been specified
@@ -293,7 +353,7 @@ module Fluent =
 
             | None -> failwith "unset collection"
 
-        let replaceOne update (scope : Scope) =
+        let replaceOne update (scope : Scope<'DocType>) =
             match scope.Internals with
             | Some  { Agent = agent; Database = db; Collection = clctn } ->
                 // Raise error if sort has been specified
@@ -314,7 +374,7 @@ module Fluent =
 
             | None -> failwith "unset collection"
 
-        let explain (scope : Scope) =
+        let explain (scope : Scope<'DocType>) =
             match scope.Internals with
             | Some  { Agent = agent; Database = db; Collection = clctn } ->
                 let query = makeQueryDoc scope.Query scope.Sort scope.QueryOptions
@@ -342,7 +402,7 @@ module Fluent =
 
             | None -> failwith "unset collection"
 
-        let textSearch text (scope : Scope) =
+        let textSearch text (scope : Scope<'DocType>) =
             match scope.Internals with
             | Some  { Agent = agent; Database = db; Collection = clctn } ->
                 let cmd = makeTextSearchDoc clctn text scope.Query scope.Project scope.Limit { Language = None }
@@ -351,7 +411,7 @@ module Fluent =
 
             | None -> failwith "unset collection"
 
-        let textSearchWithOptions text (options : TextSearchOptions) (scope : Scope) =
+        let textSearchWithOptions text (options : TextSearchOptions) (scope : Scope<'DocType>) =
             match scope.Internals with
             | Some  { Agent = agent; Database = db; Collection = clctn } ->
                 let cmd = makeTextSearchDoc clctn text scope.Query scope.Project scope.Limit options
@@ -359,50 +419,3 @@ module Fluent =
                 agent.Run db cmd
 
             | None -> failwith "unset collection"
-
-type MongoCollection(agent : MongoAgent, db, clctn) =
-
-    member __.Drop () = agent.DropCollection db clctn
-
-    member __.Insert (doc, ?options0 : WriteOptions) =
-        let options = defaultArg options0 defaultWriteOptions
-
-        let flags = InsertFlags.None
-        let settings = { MongoOperationSettings.Defaults.insertSettings with WriteConcern = options.WriteConcern }
-
-        agent.Insert db clctn doc flags settings
-
-    member __.Find (?query0 : BsonDocument) =
-        let query = defaultArg query0 <| BsonDocument()
-
-        { defaultScope with Internals = Some { Agent = agent; Database = db; Collection = clctn }
-                            Query = Some query }
-
-    member x.Save (doc, ?options0 : WriteOptions) =
-        let options = defaultArg options0 defaultWriteOptions
-
-        let idProvider =
-            match BsonSerializer.LookupSerializer(doc.GetType()) with
-            | :? IBsonIdProvider as x -> x
-            | _ -> failwithf "could not find id provider for document type %O" <| doc.GetType()
-
-        let id = ref null
-        let idType = ref null
-        let idGenerator = ref null
-
-        if idProvider.GetDocumentId(doc, id, idType, idGenerator) then // document has an id
-            // Perform an upsert
-            let query = BsonDocument("_id", BsonValue.Create(!id))
-            let update = doc
-
-            let flags = UpdateFlags.Upsert
-            let settings = { MongoOperationSettings.Defaults.updateSettings with WriteConcern = options.WriteConcern }
-
-            agent.Update db clctn query update flags settings
-        else                                                           // document does not have an id
-            // Perform an insert
-            let flags = InsertFlags.None
-            let settings = { MongoOperationSettings.Defaults.insertSettings with WriteConcern = options.WriteConcern
-                                                                                 AssignIdOnInsert = true}
-
-            agent.Insert db clctn doc flags settings
