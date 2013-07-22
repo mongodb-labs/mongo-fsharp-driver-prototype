@@ -58,9 +58,6 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MongoAgentTests.fs">
-      <Link>MongoAgentTests.fs</Link>
-    </Compile>
     <Compile Include="MongoBackboneTests.fs">
       <Link>MongoBackboneTests.fs</Link>
     </Compile>
