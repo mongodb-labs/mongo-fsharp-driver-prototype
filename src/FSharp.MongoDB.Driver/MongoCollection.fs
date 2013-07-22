@@ -114,20 +114,8 @@ module Fluent =
 
                 let settings = Operation.DefaultSettings.query
 
-                let cursor = backbone.Find db clctn query project limit skip flags settings
-                let iter = cursor.GetEnumerator()
-
-                { new IEnumerator<'DocType> with
-                      member __.Current = unbox iter.Current
-
-                  interface IEnumerator with
-                      member __.Current = unbox iter.Current
-                      member __.MoveNext() = iter.MoveNext()
-                      member __.Reset() = iter.Reset()
-
-                  interface System.IDisposable with
-                      member __.Dispose() = iter.Dispose()
-                }
+                let cursor = backbone.Find<'DocType> db clctn query project limit skip flags settings
+                cursor.GetEnumerator()
 
             | None -> failwith "unset collection"
 
@@ -387,7 +375,7 @@ module Fluent =
                 let flags = QueryFlags.None
                 let settings = Operation.DefaultSettings.query
 
-                let res = backbone.Find db clctn query project limit skip flags settings
+                let res = backbone.Find<BsonDocument> db clctn query project limit skip flags settings
                 use iter = res.GetEnumerator()
 
                 if not (iter.MoveNext()) then raise <| MongoOperationException("explain command missing response document")
