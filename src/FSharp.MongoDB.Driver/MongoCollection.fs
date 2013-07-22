@@ -13,7 +13,7 @@ open MongoDB.Driver.Core.Protocol
 module Fluent =
 
     type Internals = {
-        Agent : MongoAgent
+        Backbone : MongoBackbone
         Database : string
         Collection : string
     }
@@ -101,7 +101,7 @@ module Fluent =
             let flags = defaultArg flags0 QueryFlags.None
 
             match x.Internals with
-            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
                 let query = makeQueryDoc x.Query x.Sort x.QueryOptions
 
                 let project =
@@ -114,37 +114,32 @@ module Fluent =
 
                 let settings = Operation.DefaultSettings.query
 
-                async {
-                    let! cursor = agent.Find db clctn query project limit skip flags settings
-                    let iter = cursor.GetEnumerator()
+                let cursor = backbone.Find db clctn query project limit skip flags settings
+                let iter = cursor.GetEnumerator()
 
-                    return {
-                        new IEnumerator<'DocType> with
-                            // TODO: perform deserialization
-                            member __.Current = unbox iter.Current
+                { new IEnumerator<'DocType> with
+                      member __.Current = unbox iter.Current
 
-                        interface IEnumerator with
-                            // TODO: perform deserialization
-                            member __.Current = unbox iter.Current
-                            member __.MoveNext() = iter.MoveNext()
-                            member __.Reset() = iter.Reset()
+                  interface IEnumerator with
+                      member __.Current = unbox iter.Current
+                      member __.MoveNext() = iter.MoveNext()
+                      member __.Reset() = iter.Reset()
 
-                        interface System.IDisposable with
-                            member __.Dispose() = iter.Dispose()
-                    }
+                  interface System.IDisposable with
+                      member __.Dispose() = iter.Dispose()
                 }
 
             | None -> failwith "unset collection"
 
         interface IEnumerable<'DocType> with
-            member x.GetEnumerator() = x.Get() |> Async.RunSynchronously
+            member x.GetEnumerator() = x.Get()
 
         interface IEnumerable with
             override x.GetEnumerator() = (x :> IEnumerable<'DocType>).GetEnumerator() :> IEnumerator
 
-    and MongoCollection<'DocType>(agent : MongoAgent, db, clctn) =
+    and MongoCollection<'DocType>(backbone : MongoBackbone, db, clctn) =
 
-        member __.Drop () = agent.DropCollection db clctn
+        member __.Drop () = backbone.DropCollection db clctn
 
         member __.Insert (doc, ?options0 : WriteOptions) =
             let options = defaultArg options0 defaultWriteOptions
@@ -152,12 +147,12 @@ module Fluent =
             let flags = InsertFlags.None
             let settings = { Operation.DefaultSettings.insert with WriteConcern = options.WriteConcern }
 
-            agent.Insert db clctn doc flags settings
+            backbone.Insert db clctn doc flags settings
 
         member x.Find (?query0 : BsonDocument) =
             let query = defaultArg query0 <| BsonDocument()
 
-            { Internals = Some { Agent = agent; Database = db; Collection = clctn }
+            { Internals = Some { Backbone = backbone; Database = db; Collection = clctn }
               Collection = x
 
               Query = Some query
@@ -191,14 +186,14 @@ module Fluent =
                 let flags = UpdateFlags.Upsert
                 let settings = { Operation.DefaultSettings.update with WriteConcern = options.WriteConcern }
 
-                agent.Update db clctn query update flags settings
+                backbone.Update db clctn query update flags settings
             else                                                           // document does not have an id
                 // Perform an insert
                 let flags = InsertFlags.None
                 let settings = { Operation.DefaultSettings.insert with WriteConcern = options.WriteConcern
                                                                        AssignIdOnInsert = true}
 
-                agent.Insert db clctn doc flags settings
+                backbone.Insert db clctn doc flags settings
 
     [<RequireQualifiedAccess>]
     module Query =
@@ -226,7 +221,7 @@ module Fluent =
 
         let count (scope : Scope<'DocType>) =
             match scope.Internals with
-            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
                 let cmd = BsonDocument("count", BsonString(clctn))
 
                 match scope.Query with
@@ -239,13 +234,13 @@ module Fluent =
                 cmd.AddRange([ BsonElement("limit", BsonInt32(limit))
                                BsonElement("skip", BsonInt32(skip)) ]) |> ignore
 
-                agent.Run db cmd
+                backbone.Run db cmd
 
             | None -> failwith "unset collection"
 
         let remove (scope : Scope<'DocType>) =
             match scope.Internals with
-            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
                 // Raise error if sort has been specified
                 if scope.Sort.IsSome then failwith "sort has been specified"
 
@@ -261,13 +256,13 @@ module Fluent =
                 let flags = DeleteFlags.None
                 let settings = { Operation.DefaultSettings.remove with WriteConcern = scope.WriteOptions.WriteConcern }
 
-                agent.Remove db clctn query flags settings
+                backbone.Remove db clctn query flags settings
 
             | None -> failwith "unset collection"
 
         let removeOne (scope : Scope<'DocType>) =
             match scope.Internals with
-            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
                 // Raise error if sort has been specified
                 if scope.Sort.IsSome then failwith "sort has been specified"
 
@@ -282,13 +277,13 @@ module Fluent =
                 let flags = DeleteFlags.Single
                 let settings = { Operation.DefaultSettings.remove with WriteConcern = scope.WriteOptions.WriteConcern }
 
-                agent.Remove db clctn query flags settings
+                backbone.Remove db clctn query flags settings
 
             | None -> failwith "unset collection"
 
         let update update (scope : Scope<'DocType>) =
             match scope.Internals with
-            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
                 // Raise error if sort has been specified
                 if scope.Sort.IsSome then failwith "sort has been specified"
 
@@ -305,13 +300,13 @@ module Fluent =
                 let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = true
                                                                        WriteConcern = scope.WriteOptions.WriteConcern }
 
-                agent.Update db clctn query update flags settings
+                backbone.Update db clctn query update flags settings
 
             | None -> failwith "unset collection"
 
         let updateOne update (scope : Scope<'DocType>) =
             match scope.Internals with
-            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
                 // Raise error if sort has been specified
                 if scope.Sort.IsSome then failwith "sort has been specified"
 
@@ -326,13 +321,13 @@ module Fluent =
                 let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = true
                                                                        WriteConcern = scope.WriteOptions.WriteConcern }
 
-                agent.Update db clctn query update flags settings
+                backbone.Update db clctn query update flags settings
 
             | None -> failwith "unset collection"
 
         let replace update (scope : Scope<'DocType>) =
             match scope.Internals with
-            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
                 // Raise error if sort has been specified
                 if scope.Sort.IsSome then failwith "sort has been specified"
 
@@ -349,13 +344,13 @@ module Fluent =
                 let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = false
                                                                        WriteConcern = scope.WriteOptions.WriteConcern }
 
-                agent.Update db clctn query update flags settings
+                backbone.Update db clctn query update flags settings
 
             | None -> failwith "unset collection"
 
         let replaceOne update (scope : Scope<'DocType>) =
             match scope.Internals with
-            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
                 // Raise error if sort has been specified
                 if scope.Sort.IsSome then failwith "sort has been specified"
 
@@ -370,13 +365,13 @@ module Fluent =
                 let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = false
                                                                        WriteConcern = scope.WriteOptions.WriteConcern }
 
-                agent.Update db clctn query update flags settings
+                backbone.Update db clctn query update flags settings
 
             | None -> failwith "unset collection"
 
         let explain (scope : Scope<'DocType>) =
             match scope.Internals with
-            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
                 let query = makeQueryDoc scope.Query scope.Sort scope.QueryOptions
 
                 let project =
@@ -392,30 +387,28 @@ module Fluent =
                 let flags = QueryFlags.None
                 let settings = Operation.DefaultSettings.query
 
-                async {
-                    let! res = agent.Find db clctn query project limit skip flags settings
-                    use iter = res.GetEnumerator()
+                let res = backbone.Find db clctn query project limit skip flags settings
+                use iter = res.GetEnumerator()
 
-                    if not (iter.MoveNext()) then raise <| MongoOperationException("explain command missing response document")
-                    return iter.Current
-                }
+                if not (iter.MoveNext()) then raise <| MongoOperationException("explain command missing response document")
+                iter.Current
 
             | None -> failwith "unset collection"
 
         let textSearch text (scope : Scope<'DocType>) =
             match scope.Internals with
-            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
                 let cmd = makeTextSearchDoc clctn text scope.Query scope.Project scope.Limit { Language = None }
 
-                agent.Run db cmd
+                backbone.Run db cmd
 
             | None -> failwith "unset collection"
 
         let textSearchWithOptions text (options : TextSearchOptions) (scope : Scope<'DocType>) =
             match scope.Internals with
-            | Some  { Agent = agent; Database = db; Collection = clctn } ->
+            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
                 let cmd = makeTextSearchDoc clctn text scope.Query scope.Project scope.Limit options
 
-                agent.Run db cmd
+                backbone.Run db cmd
 
             | None -> failwith "unset collection"
