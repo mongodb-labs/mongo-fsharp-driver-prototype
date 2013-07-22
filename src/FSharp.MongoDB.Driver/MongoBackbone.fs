@@ -7,7 +7,6 @@ open System.Threading
 
 open MongoDB.Bson
 open MongoDB.Bson.Serialization
-//open MongoDB.Bson.Serialization.Serializers
 
 open MongoDB.Driver.Core
 open MongoDB.Driver.Core.Connections
@@ -16,7 +15,7 @@ open MongoDB.Driver.Core.Events
 open MongoDB.Driver.Core.Operations
 open MongoDB.Driver.Core.Protocol
 
-type MongoBackbone(settings : Backbone.AllSettings) =
+type internal MongoBackbone(settings : Backbone.AllSettings) =
 
     let eventPublisher = EventPublisher()
     let traceManager = new TraceManager()
@@ -69,7 +68,7 @@ module Operations =
 
         type MongoBackbone with
 
-            member x.Run db cmd =
+            member internal x.Run db cmd =
                 let flags = QueryFlags.None
                 let settings = Operation.DefaultSettings.command
 
@@ -84,7 +83,7 @@ module Operations =
 
                 commandOp.Execute channel
 
-            member x.DropDatabase db =
+            member internal x.DropDatabase db =
 
                 let cmd = BsonDocument("dropDatabase", BsonInt32(1))
                 x.Run db cmd
@@ -112,12 +111,12 @@ module Operations =
 
         type MongoBackbone with
 
-            member x.DropCollection db clctn =
+            member internal x.DropCollection db clctn =
 
                 let cmd = BsonDocument("drop", BsonString(clctn))
                 x.Run db cmd
 
-            member x.BulkInsert db clctn (docs : seq<'DocType>) flags (settings : Operation.InsertSettings) =
+            member internal x.BulkInsert db clctn (docs : seq<'DocType>) flags (settings : Operation.InsertSettings) =
 
                 let insertOp = InsertOperation(MongoNamespace(db, clctn), settings.ReaderSettings,
                                                settings.WriterSettings, settings.WriteConcern,
@@ -131,14 +130,14 @@ module Operations =
 
                 insertOp.Execute channel
 
-            member x.Insert db clctn doc flags settings =
+            member internal x.Insert db clctn doc flags settings =
                     let res = x.BulkInsert db clctn [ doc ] flags settings
                     use iter = res.GetEnumerator()
 
                     if not (iter.MoveNext()) then raise <| MongoOperationException("insert command missing write concern result")
                     iter.Current
 
-            member x.Find<'DocType> db clctn query project limit skip flags (settings : Operation.QuerySettings) =
+            member internal x.Find<'DocType> db clctn query project limit skip flags (settings : Operation.QuerySettings) =
 
                 let queryOp = QueryOperation<'DocType>(MongoNamespace(db, clctn), settings.ReaderSettings,
                                                        settings.WriterSettings, settings.BatchSize, project,
@@ -161,7 +160,7 @@ module Operations =
                           (cursorChannel :> IDisposable).Dispose()
                     }
 
-            member x.Update db clctn query update flags (settings : Operation.UpdateSettings) =
+            member internal x.Update db clctn query update flags (settings : Operation.UpdateSettings) =
 
                 let updateOp = UpdateOperation(MongoNamespace(db, clctn), settings.ReaderSettings,
                                                settings.WriterSettings, settings.WriteConcern,
@@ -174,7 +173,7 @@ module Operations =
 
                 updateOp.Execute channel
 
-            member x.Remove db clctn query flags (settings : Operation.RemoveSettings) =
+            member internal x.Remove db clctn query flags (settings : Operation.RemoveSettings) =
 
                 let removeOp = RemoveOperation(MongoNamespace(db, clctn), settings.ReaderSettings,
                                                settings.WriterSettings, settings.WriteConcern,

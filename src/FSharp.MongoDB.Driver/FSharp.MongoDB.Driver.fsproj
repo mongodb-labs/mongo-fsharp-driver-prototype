@@ -50,6 +50,9 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Properties/AssemblyInfo.fs">
+      <Link>Properties/AssemblyInfo.fs</Link>
+    </Compile>
     <Compile Include="MongoOperationSettings.fs">
       <Link>MongoOperationSettings.fs</Link>
     </Compile>

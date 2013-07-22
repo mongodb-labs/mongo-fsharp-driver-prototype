@@ -4,4 +4,4 @@ type MongoClient(settings : Backbone.AllSettings) =
 
     let backbone = MongoBackbone(settings)
 
-    member __.GetDatabase db = MongoDatabase(backbone, db)
+    member x.GetDatabase db = MongoDatabase(backbone, db)

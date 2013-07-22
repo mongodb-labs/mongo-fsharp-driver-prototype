@@ -15,7 +15,7 @@ module MongoBackbone =
     [<AutoOpen>]
     module Configuration =
 
-        let backbone = MongoBackbone(Backbone.DefaultSettings.all)
+        let internal backbone = MongoBackbone(Backbone.DefaultSettings.all)
 
         let db = "fsharpdrivertests"
 
