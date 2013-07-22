@@ -71,7 +71,7 @@ module Operations =
 
             member x.Run db cmd =
                 let flags = QueryFlags.None
-                let settings = MongoOperationSettings.Defaults.commandSettings
+                let settings = Operation.DefaultSettings.command
 
                 let commandOp = CommandOperation(db, settings.ReaderSettings, settings.WriterSettings,
                                                  cmd, flags, null, ReadPreference.Primary, null,
@@ -117,7 +117,7 @@ module Operations =
                 let cmd = BsonDocument("drop", BsonString(clctn))
                 x.Run db cmd
 
-            member x.BulkInsert db clctn (docs : seq<'DocType>) flags (settings : MongoOperationSettings.InsertSettings) =
+            member x.BulkInsert db clctn (docs : seq<'DocType>) flags (settings : Operation.InsertSettings) =
 
                 let insertOp = InsertOperation(MongoNamespace(db, clctn), settings.ReaderSettings,
                                                settings.WriterSettings, settings.WriteConcern,
@@ -138,7 +138,7 @@ module Operations =
                     if not (iter.MoveNext()) then raise <| MongoOperationException("insert command missing write concern result")
                     iter.Current
 
-            member x.Find<'DocType> db clctn query project limit skip flags (settings : MongoOperationSettings.QuerySettings) =
+            member x.Find<'DocType> db clctn query project limit skip flags (settings : Operation.QuerySettings) =
 
                 let queryOp = QueryOperation<'DocType>(MongoNamespace(db, clctn), settings.ReaderSettings,
                                                        settings.WriterSettings, settings.BatchSize, project,
@@ -161,7 +161,7 @@ module Operations =
                           (cursorChannel :> IDisposable).Dispose()
                     }
 
-            member x.Update db clctn query update flags (settings : MongoOperationSettings.UpdateSettings) =
+            member x.Update db clctn query update flags (settings : Operation.UpdateSettings) =
 
                 let updateOp = UpdateOperation(MongoNamespace(db, clctn), settings.ReaderSettings,
                                                settings.WriterSettings, settings.WriteConcern,
@@ -174,7 +174,7 @@ module Operations =
 
                 updateOp.Execute channel
 
-            member x.Remove db clctn query flags (settings : MongoOperationSettings.RemoveSettings) =
+            member x.Remove db clctn query flags (settings : Operation.RemoveSettings) =
 
                 let removeOp = RemoveOperation(MongoNamespace(db, clctn), settings.ReaderSettings,
                                                settings.WriterSettings, settings.WriteConcern,

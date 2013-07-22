@@ -112,7 +112,7 @@ module Fluent =
                 let limit = x.Limit
                 let skip = x.Skip
 
-                let settings = MongoOperationSettings.Defaults.querySettings
+                let settings = Operation.DefaultSettings.query
 
                 async {
                     let! cursor = agent.Find db clctn query project limit skip flags settings
@@ -150,7 +150,7 @@ module Fluent =
             let options = defaultArg options0 defaultWriteOptions
 
             let flags = InsertFlags.None
-            let settings = { MongoOperationSettings.Defaults.insertSettings with WriteConcern = options.WriteConcern }
+            let settings = { Operation.DefaultSettings.insert with WriteConcern = options.WriteConcern }
 
             agent.Insert db clctn doc flags settings
 
@@ -189,14 +189,14 @@ module Fluent =
                 let update = doc
 
                 let flags = UpdateFlags.Upsert
-                let settings = { MongoOperationSettings.Defaults.updateSettings with WriteConcern = options.WriteConcern }
+                let settings = { Operation.DefaultSettings.update with WriteConcern = options.WriteConcern }
 
                 agent.Update db clctn query update flags settings
             else                                                           // document does not have an id
                 // Perform an insert
                 let flags = InsertFlags.None
-                let settings = { MongoOperationSettings.Defaults.insertSettings with WriteConcern = options.WriteConcern
-                                                                                     AssignIdOnInsert = true}
+                let settings = { Operation.DefaultSettings.insert with WriteConcern = options.WriteConcern
+                                                                       AssignIdOnInsert = true}
 
                 agent.Insert db clctn doc flags settings
 
@@ -259,7 +259,7 @@ module Fluent =
                 if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
 
                 let flags = DeleteFlags.None
-                let settings = { MongoOperationSettings.Defaults.removeSettings with WriteConcern = scope.WriteOptions.WriteConcern }
+                let settings = { Operation.DefaultSettings.remove with WriteConcern = scope.WriteOptions.WriteConcern }
 
                 agent.Remove db clctn query flags settings
 
@@ -280,7 +280,7 @@ module Fluent =
                 if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
 
                 let flags = DeleteFlags.Single
-                let settings = { MongoOperationSettings.Defaults.removeSettings with WriteConcern = scope.WriteOptions.WriteConcern }
+                let settings = { Operation.DefaultSettings.remove with WriteConcern = scope.WriteOptions.WriteConcern }
 
                 agent.Remove db clctn query flags settings
 
@@ -302,8 +302,8 @@ module Fluent =
                 if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
 
                 let flags = UpdateFlags.Multi
-                let settings = { MongoOperationSettings.Defaults.updateSettings with CheckUpdateDocument = true
-                                                                                     WriteConcern = scope.WriteOptions.WriteConcern }
+                let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = true
+                                                                       WriteConcern = scope.WriteOptions.WriteConcern }
 
                 agent.Update db clctn query update flags settings
 
@@ -323,8 +323,8 @@ module Fluent =
                 let query = makeQueryDoc scope.Query None scope.QueryOptions
 
                 let flags = UpdateFlags.None
-                let settings = { MongoOperationSettings.Defaults.updateSettings with CheckUpdateDocument = true
-                                                                                     WriteConcern = scope.WriteOptions.WriteConcern }
+                let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = true
+                                                                       WriteConcern = scope.WriteOptions.WriteConcern }
 
                 agent.Update db clctn query update flags settings
 
@@ -346,8 +346,8 @@ module Fluent =
                 if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
 
                 let flags = UpdateFlags.Multi
-                let settings = { MongoOperationSettings.Defaults.updateSettings with CheckUpdateDocument = false
-                                                                                     WriteConcern = scope.WriteOptions.WriteConcern }
+                let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = false
+                                                                       WriteConcern = scope.WriteOptions.WriteConcern }
 
                 agent.Update db clctn query update flags settings
 
@@ -367,8 +367,8 @@ module Fluent =
                 let query = makeQueryDoc scope.Query None scope.QueryOptions
 
                 let flags = UpdateFlags.None
-                let settings = { MongoOperationSettings.Defaults.updateSettings with CheckUpdateDocument = false
-                                                                                     WriteConcern = scope.WriteOptions.WriteConcern }
+                let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = false
+                                                                       WriteConcern = scope.WriteOptions.WriteConcern }
 
                 agent.Update db clctn query update flags settings
 
@@ -390,7 +390,7 @@ module Fluent =
                 let skip = scope.Skip
 
                 let flags = QueryFlags.None
-                let settings = MongoOperationSettings.Defaults.querySettings
+                let settings = Operation.DefaultSettings.query
 
                 async {
                     let! res = agent.Find db clctn query project limit skip flags settings

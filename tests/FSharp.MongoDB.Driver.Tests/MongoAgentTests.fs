@@ -39,7 +39,7 @@ module Exceptions =
                                     BsonElement("qty", BsonInt32(25)) ]) ]
 
         let insertFlags = InsertFlags.None
-        let insertSettings = MongoOperationSettings.Defaults.insertSettings
+        let insertSettings = Operation.DefaultSettings.insert
 
         agent.BulkInsert db clctn docs insertFlags insertSettings |> Async.RunSynchronously |> ignore
 
@@ -47,7 +47,7 @@ module Exceptions =
         let project = BsonDocument()
 
         let queryFlags = QueryFlags.None
-        let querySettings = MongoOperationSettings.Defaults.querySettings
+        let querySettings = Operation.DefaultSettings.query
 
         let res = agent.Find db clctn query project 0 0 queryFlags querySettings |> Async.RunSynchronously
 
@@ -69,7 +69,7 @@ module Exceptions =
                                     BsonElement("qty", BsonInt32(25)) ]) ]
 
         let insertFlags = InsertFlags.None
-        let insertSettings = { MongoOperationSettings.Defaults.insertSettings with WriteConcern = WriteConcern.Acknowledged }
+        let insertSettings = { Operation.DefaultSettings.insert with WriteConcern = WriteConcern.Acknowledged }
 
         try
             agent.BulkInsert db clctn docs insertFlags insertSettings |> Async.RunSynchronously |> ignore
@@ -86,7 +86,7 @@ module Exceptions =
                                  BsonElement("qty", BsonInt32(15)) ])
 
         let insertFlags = InsertFlags.None
-        let insertSettings = MongoOperationSettings.Defaults.insertSettings
+        let insertSettings = Operation.DefaultSettings.insert
 
         agent.Insert db clctn doc insertFlags insertSettings |> Async.RunSynchronously |> ignore
 
@@ -94,7 +94,7 @@ module Exceptions =
         let update = BsonDocument("qty", BsonDocument("$inc", BsonInt32(-1))) // careful here
 
         let updateFlags = UpdateFlags.None
-        let updateSettings = { MongoOperationSettings.Defaults.updateSettings with CheckUpdateDocument = true }
+        let updateSettings = { Operation.DefaultSettings.update with CheckUpdateDocument = true }
 
         try
             agent.Update db clctn updateQuery update updateFlags updateSettings |> Async.RunSynchronously |> ignore
@@ -119,7 +119,7 @@ module InsertOps =
                                  BsonElement("qty", BsonInt32(15)) ])
 
         let insertFlags = InsertFlags.None
-        let insertSettings = { MongoOperationSettings.Defaults.insertSettings with AssignIdOnInsert = false }
+        let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = false }
 
         agent.Insert db clctn doc insertFlags insertSettings |> Async.RunSynchronously |> ignore
 
@@ -127,7 +127,7 @@ module InsertOps =
         let project = BsonDocument()
 
         let queryFlags = QueryFlags.None
-        let querySettings = MongoOperationSettings.Defaults.querySettings
+        let querySettings = Operation.DefaultSettings.query
 
         let res = agent.Find db clctn query project 0 0 queryFlags querySettings |> Async.RunSynchronously |> Seq.toList
 
@@ -151,7 +151,7 @@ module InsertOps =
                                  BsonElement("qty", BsonInt32(15)) ])
 
         let insertFlags = InsertFlags.None
-        let insertSettings = MongoOperationSettings.Defaults.insertSettings
+        let insertSettings = Operation.DefaultSettings.insert
 
         agent.Insert db clctn doc insertFlags insertSettings |> Async.RunSynchronously |> ignore
 
@@ -159,7 +159,7 @@ module InsertOps =
         let project = BsonDocument()
 
         let queryFlags = QueryFlags.None
-        let querySettings = MongoOperationSettings.Defaults.querySettings
+        let querySettings = Operation.DefaultSettings.query
 
         let res = agent.Find db clctn query project 0 0 queryFlags querySettings |> Async.RunSynchronously |> Seq.toList
 
@@ -185,7 +185,7 @@ module InsertOps =
                                     BsonElement("qty", BsonInt32(25)) ]) ]
 
         let insertFlags = InsertFlags.None
-        let insertSettings = MongoOperationSettings.Defaults.insertSettings
+        let insertSettings = Operation.DefaultSettings.insert
 
         agent.BulkInsert db clctn docs insertFlags insertSettings |> Async.RunSynchronously |> ignore
 
@@ -193,7 +193,7 @@ module InsertOps =
         let project = BsonDocument()
 
         let queryFlags = QueryFlags.None
-        let querySettings = MongoOperationSettings.Defaults.querySettings
+        let querySettings = Operation.DefaultSettings.query
 
         let res = agent.Find db clctn query project 0 0 queryFlags querySettings |> Async.RunSynchronously |> Seq.toList
 
@@ -221,7 +221,7 @@ module UpdateOps =
                                  BsonElement("qty", BsonInt32(15)) ])
 
         let insertFlags = InsertFlags.None
-        let insertSettings = { MongoOperationSettings.Defaults.insertSettings with AssignIdOnInsert = false }
+        let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = false }
 
         agent.Insert db clctn doc insertFlags insertSettings |> Async.RunSynchronously |> ignore
 
@@ -229,7 +229,7 @@ module UpdateOps =
         let update = BsonDocument("$inc", BsonDocument("qty", BsonInt32(-1)))
 
         let updateFlags = UpdateFlags.None
-        let updateSettings = MongoOperationSettings.Defaults.updateSettings
+        let updateSettings = Operation.DefaultSettings.update
 
         agent.Update db clctn updateQuery update updateFlags updateSettings |> Async.RunSynchronously |> ignore
 
@@ -237,7 +237,7 @@ module UpdateOps =
         let project = BsonDocument()
 
         let queryFlags = QueryFlags.None
-        let querySettings = MongoOperationSettings.Defaults.querySettings
+        let querySettings = Operation.DefaultSettings.query
 
         let res = agent.Find db clctn findQuery project 0 0 queryFlags querySettings |> Async.RunSynchronously |> Seq.toList
 
@@ -263,7 +263,7 @@ module UpdateOps =
                                     BsonElement("qty", BsonInt32(25)) ]) ]
 
         let insertFlags = InsertFlags.None
-        let insertSettings = MongoOperationSettings.Defaults.insertSettings
+        let insertSettings = Operation.DefaultSettings.insert
 
         agent.BulkInsert db clctn docs insertFlags insertSettings |> Async.RunSynchronously |> ignore
 
@@ -271,7 +271,7 @@ module UpdateOps =
         let update = BsonDocument("$inc", BsonDocument("qty", BsonInt32(-1)))
 
         let updateFlags = UpdateFlags.Multi
-        let updateSettings = MongoOperationSettings.Defaults.updateSettings
+        let updateSettings = Operation.DefaultSettings.update
 
         agent.Update db clctn updateQuery update updateFlags updateSettings |> Async.RunSynchronously |> ignore
 
@@ -279,7 +279,7 @@ module UpdateOps =
         let project = BsonDocument()
 
         let queryFlags = QueryFlags.None
-        let querySettings = MongoOperationSettings.Defaults.querySettings
+        let querySettings = Operation.DefaultSettings.query
 
         let res = agent.Find db clctn findQuery project 0 0 queryFlags querySettings |> Async.RunSynchronously |> Seq.toList
 
@@ -299,7 +299,7 @@ module UpdateOps =
         let update = BsonDocument("$inc", BsonDocument("qty", BsonInt32(-1)))
 
         let updateFlags = UpdateFlags.Upsert
-        let updateSettings = MongoOperationSettings.Defaults.updateSettings
+        let updateSettings = Operation.DefaultSettings.update
 
         agent.Update db clctn updateQuery update updateFlags updateSettings |> Async.RunSynchronously |> ignore
 
@@ -307,7 +307,7 @@ module UpdateOps =
         let project = BsonDocument()
 
         let queryFlags = QueryFlags.None
-        let querySettings = MongoOperationSettings.Defaults.querySettings
+        let querySettings = Operation.DefaultSettings.query
 
         let res = agent.Find db clctn findQuery project 0 0 queryFlags querySettings |> Async.RunSynchronously |> Seq.toList
 
@@ -342,14 +342,14 @@ module RemoveOps =
                                     BsonElement("qty", BsonInt32(25)) ]) ]
 
         let insertFlags = InsertFlags.None
-        let insertSettings = { MongoOperationSettings.Defaults.insertSettings with AssignIdOnInsert = true }
+        let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = true }
 
         agent.BulkInsert db clctn docs insertFlags insertSettings |> Async.RunSynchronously |> ignore
 
         let removeQuery = BsonDocument("_id", BsonInt32(11))
 
         let deleteFlags = DeleteFlags.Single
-        let removeSettings = MongoOperationSettings.Defaults.removeSettings
+        let removeSettings = Operation.DefaultSettings.remove
 
         agent.Remove db clctn removeQuery deleteFlags removeSettings |> Async.RunSynchronously |> ignore
 
@@ -357,7 +357,7 @@ module RemoveOps =
         let project = BsonDocument()
 
         let queryFlags = QueryFlags.None
-        let querySettings = MongoOperationSettings.Defaults.querySettings
+        let querySettings = Operation.DefaultSettings.query
 
         let res = agent.Find db clctn findQuery project 0 0 queryFlags querySettings |> Async.RunSynchronously |> Seq.toList
 
@@ -382,14 +382,14 @@ module RemoveOps =
                                     BsonElement("qty", BsonInt32(25)) ]) ]
 
         let insertFlags = InsertFlags.None
-        let insertSettings = { MongoOperationSettings.Defaults.insertSettings with AssignIdOnInsert = true }
+        let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = true }
 
         agent.BulkInsert db clctn docs insertFlags insertSettings |> Async.RunSynchronously |> ignore
 
         let removeQuery = BsonDocument("qty", BsonDocument("$lte", BsonInt32(25)))
 
         let deleteFlags = DeleteFlags.None
-        let removeSettings = MongoOperationSettings.Defaults.removeSettings
+        let removeSettings = Operation.DefaultSettings.remove
 
         agent.Remove db clctn removeQuery deleteFlags removeSettings |> Async.RunSynchronously |> ignore
 
@@ -397,7 +397,7 @@ module RemoveOps =
         let project = BsonDocument()
 
         let queryFlags = QueryFlags.None
-        let querySettings = MongoOperationSettings.Defaults.querySettings
+        let querySettings = Operation.DefaultSettings.query
 
         let res = agent.Find db clctn findQuery project 0 0 queryFlags querySettings |> Async.RunSynchronously |> Seq.toList
 
@@ -425,14 +425,14 @@ module RemoveOps =
                                     BsonElement("qty", BsonInt32(25)) ]) ]
 
         let insertFlags = InsertFlags.None
-        let insertSettings = { MongoOperationSettings.Defaults.insertSettings with AssignIdOnInsert = true }
+        let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = true }
 
         agent.BulkInsert db clctn docs insertFlags insertSettings |> Async.RunSynchronously |> ignore
 
         let removeQuery = BsonDocument()
 
         let deleteFlags = DeleteFlags.None
-        let removeSettings = MongoOperationSettings.Defaults.removeSettings
+        let removeSettings = Operation.DefaultSettings.remove
 
         agent.Remove db clctn removeQuery deleteFlags removeSettings |> Async.RunSynchronously |> ignore
 
@@ -440,7 +440,7 @@ module RemoveOps =
         let project = BsonDocument()
 
         let queryFlags = QueryFlags.None
-        let querySettings = MongoOperationSettings.Defaults.querySettings
+        let querySettings = Operation.DefaultSettings.query
 
         let res = agent.Find db clctn findQuery project 0 0 queryFlags querySettings |> Async.RunSynchronously |> Seq.toList
 

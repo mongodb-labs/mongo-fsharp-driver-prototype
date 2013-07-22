@@ -186,7 +186,7 @@ module DatabaseOps =
 
         member x.Run db cmd =
             let flags = QueryFlags.None
-            let settings = MongoOperationSettings.Defaults.commandSettings
+            let settings = Operation.DefaultSettings.command
 
             let commandOp = CommandOperation(db, settings.ReaderSettings, settings.WriterSettings,
                                              cmd, flags, null, ReadPreference.Primary, null,
@@ -217,7 +217,7 @@ module CollectionOps =
             let cmd = BsonDocument("drop", BsonString(clctn))
             x.Run db cmd
 
-        member x.BulkInsert db clctn (docs : seq<'DocType>) flags (settings : MongoOperationSettings.InsertSettings) =
+        member x.BulkInsert db clctn (docs : seq<'DocType>) flags (settings : Operation.InsertSettings) =
 
             let insertOp = InsertOperation(MongoNamespace(db, clctn), settings.ReaderSettings,
                                            settings.WriterSettings, settings.WriteConcern,
@@ -235,7 +235,7 @@ module CollectionOps =
                 return iter.Current
             }
 
-        member x.Find db clctn query project limit skip flags (settings : MongoOperationSettings.QuerySettings) =
+        member x.Find db clctn query project limit skip flags (settings : Operation.QuerySettings) =
 
             let queryOp = QueryOperation(MongoNamespace(db, clctn), settings.ReaderSettings,
                                          settings.WriterSettings, settings.BatchSize, project,
@@ -244,7 +244,7 @@ module CollectionOps =
 
             x.Agent.PostAndAsyncReply(fun replyCh -> Find (queryOp, replyCh)) |> handle
 
-        member x.Update db clctn query update flags (settings : MongoOperationSettings.UpdateSettings) =
+        member x.Update db clctn query update flags (settings : Operation.UpdateSettings) =
 
             let updateOp = UpdateOperation(MongoNamespace(db, clctn), settings.ReaderSettings,
                                            settings.WriterSettings, settings.WriteConcern,
@@ -252,7 +252,7 @@ module CollectionOps =
 
             x.Agent.PostAndAsyncReply(fun replyCh -> Update (updateOp, replyCh)) |> handle
 
-        member x.Remove db clctn query flags (settings : MongoOperationSettings.RemoveSettings) =
+        member x.Remove db clctn query flags (settings : Operation.RemoveSettings) =
 
             let removeOp = RemoveOperation(MongoNamespace(db, clctn), settings.ReaderSettings,
                                            settings.WriterSettings, settings.WriteConcern,

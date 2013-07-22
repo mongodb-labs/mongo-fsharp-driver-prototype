@@ -4,7 +4,8 @@ open MongoDB.Bson.IO
 
 open MongoDB.Driver.Core
 
-module MongoOperationSettings =
+[<RequireQualifiedAccess>]
+module Operation =
 
     type CommandSettings = {
         ReaderSettings : BsonBinaryReaderSettings
@@ -38,14 +39,15 @@ module MongoOperationSettings =
         WriteConcern : WriteConcern
     }
 
-    module Defaults =
+    [<RequireQualifiedAccess>]
+    module DefaultSettings =
 
-        let commandSettings = {
+        let command = {
             CommandSettings.ReaderSettings = BsonBinaryReaderSettings.Defaults
             WriterSettings = BsonBinaryWriterSettings.Defaults
         }
 
-        let insertSettings = {
+        let insert = {
             ReaderSettings = BsonBinaryReaderSettings.Defaults
             WriterSettings = BsonBinaryWriterSettings.Defaults
             WriteConcern = WriteConcern.Acknowledged
@@ -53,20 +55,20 @@ module MongoOperationSettings =
             CheckInsertDocuments = true
         }
 
-        let querySettings = {
+        let query = {
             ReaderSettings = BsonBinaryReaderSettings.Defaults
             WriterSettings = BsonBinaryWriterSettings.Defaults
             BatchSize = 100
         }
 
-        let updateSettings = {
+        let update = {
             ReaderSettings = BsonBinaryReaderSettings.Defaults
             WriterSettings = BsonBinaryWriterSettings.Defaults
             WriteConcern = WriteConcern.Acknowledged
             CheckUpdateDocument = true
         }
 
-        let removeSettings = {
+        let remove = {
             ReaderSettings = BsonBinaryReaderSettings.Defaults
             WriterSettings = BsonBinaryWriterSettings.Defaults
             WriteConcern = WriteConcern.Acknowledged
