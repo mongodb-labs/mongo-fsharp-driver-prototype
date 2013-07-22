@@ -59,6 +59,12 @@
     <Compile Include="MongoAgent.fs">
       <Link>MongoAgent.fs</Link>
     </Compile>
+    <Compile Include="MongoBackboneSettings.fs">
+      <Link>MongoBackboneSettings.fs</Link>
+    </Compile>
+    <Compile Include="MongoBackbone.fs">
+      <Link>MongoBackbone.fs</Link>
+    </Compile>
     <Compile Include="MongoDatabase.fs">
       <Link>MongoDatabase.fs</Link>
     </Compile>
