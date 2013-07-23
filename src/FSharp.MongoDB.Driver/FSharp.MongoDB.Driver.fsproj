@@ -50,14 +50,11 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Properties/AssemblyInfo.fs">
+      <Link>Properties/AssemblyInfo.fs</Link>
+    </Compile>
     <Compile Include="MongoOperationSettings.fs">
       <Link>MongoOperationSettings.fs</Link>
-    </Compile>
-    <Compile Include="MongoAgentSettings.fs">
-      <Link>MongoAgentSettings.fs</Link>
-    </Compile>
-    <Compile Include="MongoAgent.fs">
-      <Link>MongoAgent.fs</Link>
     </Compile>
     <Compile Include="MongoBackboneSettings.fs">
       <Link>MongoBackboneSettings.fs</Link>
@@ -65,11 +62,14 @@
     <Compile Include="MongoBackbone.fs">
       <Link>MongoBackbone.fs</Link>
     </Compile>
+    <Compile Include="MongoCollection.fs">
+      <Link>MongoCollection.fs</Link>
+    </Compile>
     <Compile Include="MongoDatabase.fs">
       <Link>MongoDatabase.fs</Link>
     </Compile>
-    <Compile Include="MongoCollection.fs">
-      <Link>MongoCollection.fs</Link>
+    <Compile Include="MongoClient.fs">
+      <Link>MongoClient.fs</Link>
     </Compile>
   </ItemGroup>
   <PropertyGroup>

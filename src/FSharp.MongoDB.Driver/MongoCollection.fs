@@ -12,12 +12,6 @@ open MongoDB.Driver.Core.Protocol
 [<AutoOpen>]
 module Fluent =
 
-    type Internals = {
-        Backbone : MongoBackbone
-        Database : string
-        Collection : string
-    }
-
     type QueryOptions = {
         Comment : string option
         Hint : BsonDocument option
@@ -84,7 +78,6 @@ module Fluent =
         |> addElem "language" options.Language
 
     type Scope<'DocType> = {
-        Internals : Internals option
         Collection : MongoCollection<'DocType>
 
         Query : BsonDocument option
@@ -100,24 +93,24 @@ module Fluent =
         member x.Get (?flags0) =
             let flags = defaultArg flags0 QueryFlags.None
 
-            match x.Internals with
-            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
-                let query = makeQueryDoc x.Query x.Sort x.QueryOptions
+            let backbone = x.Collection.backbone
+            let db = x.Collection.db
+            let clctn = x.Collection.clctn
 
-                let project =
-                    match x.Project with
-                    | Some x -> x
-                    | None -> null
+            let query = makeQueryDoc x.Query x.Sort x.QueryOptions
 
-                let limit = x.Limit
-                let skip = x.Skip
+            let project =
+                match x.Project with
+                | Some x -> x
+                | None -> null
 
-                let settings = Operation.DefaultSettings.query
+            let limit = x.Limit
+            let skip = x.Skip
 
-                let cursor = backbone.Find<'DocType> db clctn query project limit skip flags settings
-                cursor.GetEnumerator()
+            let settings = Operation.DefaultSettings.query
 
-            | None -> failwith "unset collection"
+            let cursor = backbone.Find<'DocType> db clctn query project limit skip flags settings
+            cursor.GetEnumerator()
 
         interface IEnumerable<'DocType> with
             member x.GetEnumerator() = x.Get()
@@ -125,23 +118,32 @@ module Fluent =
         interface IEnumerable with
             override x.GetEnumerator() = (x :> IEnumerable<'DocType>).GetEnumerator() :> IEnumerator
 
-    and MongoCollection<'DocType>(backbone : MongoBackbone, db, clctn) =
+    and MongoCollection<'DocType> =
 
-        member __.Drop () = backbone.DropCollection db clctn
+        val internal backbone : MongoBackbone
+        val internal db : string
+        val internal clctn : string
 
-        member __.Insert (doc, ?options0 : WriteOptions) =
+        internal new (backbone, db, clctn) = {
+            backbone = backbone
+            db = db
+            clctn = clctn
+        }
+
+        member x.Drop () = x.backbone.DropCollection x.db x.clctn
+
+        member x.Insert (doc, ?options0 : WriteOptions) =
             let options = defaultArg options0 defaultWriteOptions
 
             let flags = InsertFlags.None
             let settings = { Operation.DefaultSettings.insert with WriteConcern = options.WriteConcern }
 
-            backbone.Insert db clctn doc flags settings
+            x.backbone.Insert x.db x.clctn doc flags settings
 
         member x.Find (?query0 : BsonDocument) =
             let query = defaultArg query0 <| BsonDocument()
 
-            { Internals = Some { Backbone = backbone; Database = db; Collection = clctn }
-              Collection = x
+            { Collection = x
 
               Query = Some query
               Project = None
@@ -174,14 +176,14 @@ module Fluent =
                 let flags = UpdateFlags.Upsert
                 let settings = { Operation.DefaultSettings.update with WriteConcern = options.WriteConcern }
 
-                backbone.Update db clctn query update flags settings
+                x.backbone.Update x.db x.clctn query update flags settings
             else                                                           // document does not have an id
                 // Perform an insert
                 let flags = InsertFlags.None
                 let settings = { Operation.DefaultSettings.insert with WriteConcern = options.WriteConcern
                                                                        AssignIdOnInsert = true}
 
-                backbone.Insert db clctn doc flags settings
+                x.backbone.Insert x.db x.clctn doc flags settings
 
     [<RequireQualifiedAccess>]
     module Query =
@@ -208,195 +210,195 @@ module Fluent =
             { scope with WriteOptions = options }
 
         let count (scope : Scope<'DocType>) =
-            match scope.Internals with
-            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
-                let cmd = BsonDocument("count", BsonString(clctn))
+            let backbone = scope.Collection.backbone
+            let db = scope.Collection.db
+            let clctn = scope.Collection.clctn
 
-                match scope.Query with
-                | Some x -> cmd.Add("query", x) |> ignore
-                | None -> ()
+            let cmd = BsonDocument("count", BsonString(clctn))
 
-                let limit = scope.Limit
-                let skip = scope.Skip
+            match scope.Query with
+            | Some x -> cmd.Add("query", x) |> ignore
+            | None -> ()
 
-                cmd.AddRange([ BsonElement("limit", BsonInt32(limit))
-                               BsonElement("skip", BsonInt32(skip)) ]) |> ignore
+            let limit = scope.Limit
+            let skip = scope.Skip
 
-                backbone.Run db cmd
+            cmd.AddRange([ BsonElement("limit", BsonInt32(limit))
+                           BsonElement("skip", BsonInt32(skip)) ]) |> ignore
 
-            | None -> failwith "unset collection"
+            backbone.Run db cmd
 
         let remove (scope : Scope<'DocType>) =
-            match scope.Internals with
-            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
-                // Raise error if sort has been specified
-                if scope.Sort.IsSome then failwith "sort has been specified"
+            let backbone = scope.Collection.backbone
+            let db = scope.Collection.db
+            let clctn = scope.Collection.clctn
 
-                // Raise error if limit has been specified (as other than 1)
-                if scope.Limit <> 0 && scope.Limit <> 1 then failwith "limit has been specified"
+            // Raise error if sort has been specified
+            if scope.Sort.IsSome then failwith "sort has been specified"
 
-                // Raise error if skip has been specified
-                if scope.Skip <> 0 then failwith "skip has been specified"
+            // Raise error if limit has been specified (as other than 1)
+            if scope.Limit <> 0 && scope.Limit <> 1 then failwith "limit has been specified"
 
-                let query = makeQueryDoc scope.Query None scope.QueryOptions
-                if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
+            // Raise error if skip has been specified
+            if scope.Skip <> 0 then failwith "skip has been specified"
 
-                let flags = DeleteFlags.None
-                let settings = { Operation.DefaultSettings.remove with WriteConcern = scope.WriteOptions.WriteConcern }
+            let query = makeQueryDoc scope.Query None scope.QueryOptions
+            if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
 
-                backbone.Remove db clctn query flags settings
+            let flags = DeleteFlags.None
+            let settings = { Operation.DefaultSettings.remove with WriteConcern = scope.WriteOptions.WriteConcern }
 
-            | None -> failwith "unset collection"
+            backbone.Remove db clctn query flags settings
 
         let removeOne (scope : Scope<'DocType>) =
-            match scope.Internals with
-            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
-                // Raise error if sort has been specified
-                if scope.Sort.IsSome then failwith "sort has been specified"
+            let backbone = scope.Collection.backbone
+            let db = scope.Collection.db
+            let clctn = scope.Collection.clctn
 
-                // Ignore limit
+            // Raise error if sort has been specified
+            if scope.Sort.IsSome then failwith "sort has been specified"
 
-                // Raise error if skip has been specified
-                if scope.Skip <> 0 then failwith "skip has been specified"
+            // Ignore limit
 
-                let query = makeQueryDoc scope.Query None scope.QueryOptions
-                if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
+            // Raise error if skip has been specified
+            if scope.Skip <> 0 then failwith "skip has been specified"
 
-                let flags = DeleteFlags.Single
-                let settings = { Operation.DefaultSettings.remove with WriteConcern = scope.WriteOptions.WriteConcern }
+            let query = makeQueryDoc scope.Query None scope.QueryOptions
+            if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
 
-                backbone.Remove db clctn query flags settings
+            let flags = DeleteFlags.Single
+            let settings = { Operation.DefaultSettings.remove with WriteConcern = scope.WriteOptions.WriteConcern }
 
-            | None -> failwith "unset collection"
+            backbone.Remove db clctn query flags settings
 
         let update update (scope : Scope<'DocType>) =
-            match scope.Internals with
-            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
-                // Raise error if sort has been specified
-                if scope.Sort.IsSome then failwith "sort has been specified"
+            let backbone = scope.Collection.backbone
+            let db = scope.Collection.db
+            let clctn = scope.Collection.clctn
 
-                // Raise error if limit has been specified (as other than 1)
-                if scope.Limit <> 0 && scope.Limit <> 1 then failwith "limit has been specified"
+            // Raise error if sort has been specified
+            if scope.Sort.IsSome then failwith "sort has been specified"
 
-                // Raise error if skip has been specified
-                if scope.Skip <> 0 then failwith "skip has been specified"
+            // Raise error if limit has been specified (as other than 1)
+            if scope.Limit <> 0 && scope.Limit <> 1 then failwith "limit has been specified"
 
-                let query = makeQueryDoc scope.Query None scope.QueryOptions
-                if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
+            // Raise error if skip has been specified
+            if scope.Skip <> 0 then failwith "skip has been specified"
 
-                let flags = UpdateFlags.Multi
-                let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = true
-                                                                       WriteConcern = scope.WriteOptions.WriteConcern }
+            let query = makeQueryDoc scope.Query None scope.QueryOptions
+            if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
 
-                backbone.Update db clctn query update flags settings
+            let flags = UpdateFlags.Multi
+            let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = true
+                                                                   WriteConcern = scope.WriteOptions.WriteConcern }
 
-            | None -> failwith "unset collection"
+            backbone.Update db clctn query update flags settings
 
         let updateOne update (scope : Scope<'DocType>) =
-            match scope.Internals with
-            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
-                // Raise error if sort has been specified
-                if scope.Sort.IsSome then failwith "sort has been specified"
+            let backbone = scope.Collection.backbone
+            let db = scope.Collection.db
+            let clctn = scope.Collection.clctn
 
-                // Ignore limit
+            // Raise error if sort has been specified
+            if scope.Sort.IsSome then failwith "sort has been specified"
 
-                // Raise error if skip has been specified
-                if scope.Skip <> 0 then failwith "skip has been specified"
+            // Ignore limit
 
-                let query = makeQueryDoc scope.Query None scope.QueryOptions
+            // Raise error if skip has been specified
+            if scope.Skip <> 0 then failwith "skip has been specified"
 
-                let flags = UpdateFlags.None
-                let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = true
-                                                                       WriteConcern = scope.WriteOptions.WriteConcern }
+            let query = makeQueryDoc scope.Query None scope.QueryOptions
 
-                backbone.Update db clctn query update flags settings
+            let flags = UpdateFlags.None
+            let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = true
+                                                                   WriteConcern = scope.WriteOptions.WriteConcern }
 
-            | None -> failwith "unset collection"
+            backbone.Update db clctn query update flags settings
 
         let replace update (scope : Scope<'DocType>) =
-            match scope.Internals with
-            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
-                // Raise error if sort has been specified
-                if scope.Sort.IsSome then failwith "sort has been specified"
+            let backbone = scope.Collection.backbone
+            let db = scope.Collection.db
+            let clctn = scope.Collection.clctn
 
-                // Raise error if limit has been specified (as other than 1)
-                if scope.Limit <> 0 && scope.Limit <> 1 then failwith "limit has been specified"
+            // Raise error if sort has been specified
+            if scope.Sort.IsSome then failwith "sort has been specified"
 
-                // Raise error if skip has been specified
-                if scope.Skip <> 0 then failwith "skip has been specified"
+            // Raise error if limit has been specified (as other than 1)
+            if scope.Limit <> 0 && scope.Limit <> 1 then failwith "limit has been specified"
 
-                let query = makeQueryDoc scope.Query None scope.QueryOptions
-                if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
+            // Raise error if skip has been specified
+            if scope.Skip <> 0 then failwith "skip has been specified"
 
-                let flags = UpdateFlags.Multi
-                let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = false
-                                                                       WriteConcern = scope.WriteOptions.WriteConcern }
+            let query = makeQueryDoc scope.Query None scope.QueryOptions
+            if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
 
-                backbone.Update db clctn query update flags settings
+            let flags = UpdateFlags.Multi
+            let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = false
+                                                                   WriteConcern = scope.WriteOptions.WriteConcern }
 
-            | None -> failwith "unset collection"
+            backbone.Update db clctn query update flags settings
 
         let replaceOne update (scope : Scope<'DocType>) =
-            match scope.Internals with
-            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
-                // Raise error if sort has been specified
-                if scope.Sort.IsSome then failwith "sort has been specified"
+            let backbone = scope.Collection.backbone
+            let db = scope.Collection.db
+            let clctn = scope.Collection.clctn
 
-                // Ignore limit
+            // Raise error if sort has been specified
+            if scope.Sort.IsSome then failwith "sort has been specified"
 
-                // Raise error if skip has been specified
-                if scope.Skip <> 0 then failwith "skip has been specified"
+            // Ignore limit
 
-                let query = makeQueryDoc scope.Query None scope.QueryOptions
+            // Raise error if skip has been specified
+            if scope.Skip <> 0 then failwith "skip has been specified"
 
-                let flags = UpdateFlags.None
-                let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = false
-                                                                       WriteConcern = scope.WriteOptions.WriteConcern }
+            let query = makeQueryDoc scope.Query None scope.QueryOptions
 
-                backbone.Update db clctn query update flags settings
+            let flags = UpdateFlags.None
+            let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = false
+                                                                   WriteConcern = scope.WriteOptions.WriteConcern }
 
-            | None -> failwith "unset collection"
+            backbone.Update db clctn query update flags settings
 
         let explain (scope : Scope<'DocType>) =
-            match scope.Internals with
-            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
-                let query = makeQueryDoc scope.Query scope.Sort scope.QueryOptions
+            let backbone = scope.Collection.backbone
+            let db = scope.Collection.db
+            let clctn = scope.Collection.clctn
 
-                let project =
-                    match scope.Project with
-                    | Some x -> x
-                    | None -> null
+            let query = makeQueryDoc scope.Query scope.Sort scope.QueryOptions
 
-                query.Add("$explain", BsonInt32(1)) |> ignore
+            let project =
+                match scope.Project with
+                | Some x -> x
+                | None -> null
 
-                let limit = scope.Limit
-                let skip = scope.Skip
+            query.Add("$explain", BsonInt32(1)) |> ignore
 
-                let flags = QueryFlags.None
-                let settings = Operation.DefaultSettings.query
+            let limit = scope.Limit
+            let skip = scope.Skip
 
-                let res = backbone.Find<BsonDocument> db clctn query project limit skip flags settings
-                use iter = res.GetEnumerator()
+            let flags = QueryFlags.None
+            let settings = Operation.DefaultSettings.query
 
-                if not (iter.MoveNext()) then raise <| MongoOperationException("explain command missing response document")
-                iter.Current
+            let res = backbone.Find<BsonDocument> db clctn query project limit skip flags settings
+            use iter = res.GetEnumerator()
 
-            | None -> failwith "unset collection"
+            if not (iter.MoveNext()) then raise <| MongoOperationException("explain command missing response document")
+            iter.Current
 
         let textSearch text (scope : Scope<'DocType>) =
-            match scope.Internals with
-            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
-                let cmd = makeTextSearchDoc clctn text scope.Query scope.Project scope.Limit { Language = None }
+            let backbone = scope.Collection.backbone
+            let db = scope.Collection.db
+            let clctn = scope.Collection.clctn
 
-                backbone.Run db cmd
+            let cmd = makeTextSearchDoc clctn text scope.Query scope.Project scope.Limit { Language = None }
 
-            | None -> failwith "unset collection"
+            backbone.Run db cmd
 
         let textSearchWithOptions text (options : TextSearchOptions) (scope : Scope<'DocType>) =
-            match scope.Internals with
-            | Some  { Backbone = backbone; Database = db; Collection = clctn } ->
-                let cmd = makeTextSearchDoc clctn text scope.Query scope.Project scope.Limit options
+            let backbone = scope.Collection.backbone
+            let db = scope.Collection.db
+            let clctn = scope.Collection.clctn
 
-                backbone.Run db cmd
+            let cmd = makeTextSearchDoc clctn text scope.Query scope.Project scope.Limit options
 
-            | None -> failwith "unset collection"
+            backbone.Run db cmd
