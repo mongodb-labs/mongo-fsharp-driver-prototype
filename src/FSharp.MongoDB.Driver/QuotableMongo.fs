@@ -14,10 +14,13 @@ module Quotations =
     let private doc (elem : BsonElement) = BsonDocument(elem)
 
     let rec private parser v q =
-        let (|Dynamic|_|) expr =
+        let rec (|Dynamic|_|) expr =
             match expr with
             | SpecificCall <@ (?) @> (_, _, [ Var(var); String(field) ]) ->
                 Some(var, field)
+
+            | SpecificCall <@ (?) @> (_, _, [ Dynamic(var, subdoc); String(field) ]) ->
+                Some(var, sprintf "%s.%s" subdoc field)
 
             | _ -> None
 
