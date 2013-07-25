@@ -13,30 +13,39 @@ module Quotations =
 
     let private doc (elem : BsonElement) = BsonDocument(elem)
 
-    let (|Dynamic|_|) expr =
-        match expr with
-        | SpecificCall <@ (?) @> (_, _, [ Var(var); String(field) ]) ->
-            Some(var, field)
-
-        | _ -> None
-
-    let (|Comparison|_|) v op expr =
-        match expr with
-        | SpecificCall <@ %op @> (_, _, [ Dynamic(var, field); Value(value, _) ]) when var = v ->
-            Some(field, value)
-
-        | _ -> None
-
     let rec private parser v q =
+        let (|Dynamic|_|) expr =
+            match expr with
+            | SpecificCall <@ (?) @> (_, _, [ Var(var); String(field) ]) ->
+                Some(var, field)
+
+            | _ -> None
+
+        let (|Comparison|_|) op expr =
+            match expr with
+            | SpecificCall <@ %op @> (_, _, [ Dynamic(var, field); Value(value, _) ]) when var = v ->
+                Some(field, value)
+
+            | _ -> None
+
         match q with
-        | Comparison v <@ (=) @> (field, value) ->
+        | Comparison <@ (=) @> (field, value) ->
             BsonElement(field, BsonValue.Create value)
 
-        | Comparison v <@ (>) @> (field, value) ->
+        | Comparison <@ (<>) @> (field, value) ->
+            BsonElement(field, BsonDocument("$ne", BsonValue.Create value))
+
+        | Comparison <@ (>) @> (field, value) ->
             BsonElement(field, BsonDocument("$gt", BsonValue.Create value))
 
-        | Comparison v <@ (<) @> (field, value) ->
+        | Comparison <@ (>=) @> (field, value) ->
+            BsonElement(field, BsonDocument("$gte", BsonValue.Create value))
+
+        | Comparison <@ (<) @> (field, value) ->
             BsonElement(field, BsonDocument("$lt", BsonValue.Create value))
+
+        | Comparison <@ (<=) @> (field, value) ->
+            BsonElement(field, BsonDocument("$lte", BsonValue.Create value))
 
         | AndAlso (lhs, rhs) ->
             let lhsElem = parser v lhs
