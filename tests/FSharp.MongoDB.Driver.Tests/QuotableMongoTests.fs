@@ -53,3 +53,24 @@ module QuotableMongo =
             let expected = <@ BsonDocument("qty", BsonDocument("$ne", BsonInt32(20))) @>
 
             test <@ %query = %expected @>
+
+    [<TestFixture>]
+    module Logical =
+
+        [<Test>]
+        let ``test and``() =
+            let query = <@ <@ fun x -> x?price = 1.99 && x?qty < 20 && x?sale = true @> |> bson @>
+            let expected = <@ BsonDocument("$and", BsonArray([ BsonDocument("price", BsonDouble(1.99))
+                                                               BsonDocument("qty", BsonDocument("$lt", BsonInt32(20)))
+                                                               BsonDocument("sale", BsonBoolean(true)) ])) @>
+
+            test <@ %query = %expected @>
+
+        [<Test>]
+        let ``test or``() =
+            let query = <@ <@ fun x -> x?price = 1.99 && (x?qty < 20 || x?sale = true) @> |> bson @>
+            let expected = <@ BsonDocument("$and", BsonArray([ BsonDocument("price", BsonDouble(1.99))
+                                                               BsonDocument("$or", BsonArray([ BsonDocument("qty", BsonDocument("$lt", BsonInt32(20)))
+                                                                                               BsonDocument("sale", BsonBoolean(true)) ])) ])) @>
+
+            test <@ %query = %expected @>
