@@ -1,5 +1,6 @@
 namespace FSharp.MongoDB.Driver
 
+open Microsoft.FSharp.Quotations
 open Microsoft.FSharp.Quotations.Patterns
 open Microsoft.FSharp.Quotations.DerivedPatterns
 
@@ -7,37 +8,39 @@ open MongoDB.Bson
 
 module Quotations =
 
-    let (=%) (field : string) value : bool = invalidOp "not implemented"
-
-    let (>%) (field : string) value : bool = invalidOp "not implemented"
-
-    let (<%) (field : string) value : bool = invalidOp "not implemented"
+    let (?) (doc : BsonDocument) (field : string) =
+        unbox doc.[field]
 
     let private doc (elem : BsonElement) = BsonDocument(elem)
 
-    let rec private parser q =
+    let (|Dynamic|_|) expr =
+        match expr with
+        | SpecificCall <@ (?) @> (_, _, [ Var(var); String(field) ]) ->
+            Some(var, field)
+
+        | _ -> None
+
+    let (|Comparison|_|) v op expr =
+        match expr with
+        | SpecificCall <@ %op @> (_, _, [ Dynamic(var, field); Value(value, _) ]) when var = v ->
+            Some(field, value)
+
+        | _ -> None
+
+    let rec private parser v q =
         match q with
-        | SpecificCall <@ (=%) @> (_, _, exprs) ->
-            match exprs with
-            | [ String(field); Value(value, _) ] ->
-                BsonElement(field, BsonValue.Create value)
-            | _ -> failwith "expected binary operation"
+        | Comparison v <@ (=) @> (field, value) ->
+            BsonElement(field, BsonValue.Create value)
 
-        | SpecificCall <@ (>%) @> (_, _, exprs) ->
-            match exprs with
-            | [ String(field); Value(value, _) ] ->
-                BsonElement(field, BsonDocument("$gt", BsonValue.Create value))
-            | _ -> failwith "expected binary operation"
+        | Comparison v <@ (>) @> (field, value) ->
+            BsonElement(field, BsonDocument("$gt", BsonValue.Create value))
 
-        | SpecificCall <@ (<%) @> (_, _, exprs) ->
-            match exprs with
-            | [ String(field); Value(value, _) ] ->
-                BsonElement(field, BsonDocument("$lt", BsonValue.Create value))
-            | _ -> failwith "expected binary operation"
+        | Comparison v <@ (<) @> (field, value) ->
+            BsonElement(field, BsonDocument("$lt", BsonValue.Create value))
 
         | AndAlso (lhs, rhs) ->
-            let lhsElem = parser lhs
-            let rhsElem = parser rhs
+            let lhsElem = parser v lhs
+            let rhsElem = parser v rhs
 
             if lhsElem.Name = "$and" then
                 match lhsElem.Value with
@@ -49,13 +52,13 @@ module Quotations =
             else BsonElement("$and", BsonArray([ doc lhsElem; doc rhsElem ]))
 
         | OrElse (lhs, rhs) ->
-            let lhsElem = parser lhs
-            let rhsElem = parser rhs
+            let lhsElem = parser v lhs
+            let rhsElem = parser v rhs
 
             if lhsElem.Name = "$or" then
                 match lhsElem.Value with
                 | :? BsonArray as value ->
-                    value.Add(BsonDocument(parser rhs)) |> ignore
+                    value.Add(doc rhsElem) |> ignore
                     lhsElem
                 | _ -> failwith "expected bson array"
 
@@ -63,4 +66,7 @@ module Quotations =
 
         | _ -> invalidOp "unrecognized pattern"
 
-    let bson q = BsonDocument(parser q)
+    let bson (q : Expr<'a -> bool>) =
+        match q with
+        | ExprShape.ShapeLambda(v, body) -> BsonDocument(parser v body)
+        | _ -> failwith "not a lambda expression"
