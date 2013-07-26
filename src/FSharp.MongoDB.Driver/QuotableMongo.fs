@@ -11,6 +11,52 @@ module Quotations =
     let (?) (doc : BsonDocument) (field : string) =
         unbox doc.[field]
 
+    let (?<-) (doc : BsonDocument) (field : string) value =
+        doc.[field] = unbox value |> ignore
+
+    let (=~) input pattern =
+        System.Text.RegularExpressions.Regex.IsMatch(input, pattern)
+
+    [<RequireQualifiedAccess>]
+    module Query =
+
+        let all (x : 'a list) (y : 'a list) : bool = invalidOp "not implemented"
+
+        let in' (x : 'a list) (y : 'a) : bool = invalidOp "not implemented"
+
+        let nin (x : 'a list) (y : 'a) : bool = invalidOp "not implemented"
+
+        let nor (x : bool list) : bool = invalidOp "not implemented"
+
+        let exists x : bool = invalidOp "not implemented"
+
+        let type' (x : BsonType) y : bool = invalidOp "not implemented"
+
+        let where (x : string) y : bool = invalidOp "not implemented"
+
+        let elemMatch x y : bool = invalidOp "not implemented"
+
+        let size (x : int) y : bool = invalidOp "not implemented"
+
+    [<RequireQualifiedAccess>]
+    module Update =
+
+        let addToSet (x : 'a) (y : 'a list) : 'a list = invalidOp "not implemented"
+
+        let popleft (x : 'a list) : 'a list = invalidOp "not implemented"
+
+        let popright (x : 'a list) : 'a list = invalidOp "not implemented"
+
+        let pullAll (x : 'a list) (y : 'a list) : 'a list = invalidOp "not implemented"
+
+        let push (x : 'a) (y : 'a list) : 'a list = invalidOp "not implemented"
+
+        let each (x : 'a -> 'a list -> 'a list) (y : 'a list) (z : 'a list) : 'a list = invalidOp "not implemented"
+
+        let slice (x : int) (y : 'a list) : 'a list = invalidOp "not implemented"
+
+        let sort (x : 'a) (y : 'b list) : 'b list = invalidOp "not implemented"
+
     let private doc (elem : BsonElement) = BsonDocument(elem)
 
     let rec private parser v q =
