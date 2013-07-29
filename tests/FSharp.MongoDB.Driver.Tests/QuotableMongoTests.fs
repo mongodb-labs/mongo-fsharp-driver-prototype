@@ -97,6 +97,15 @@ module QuotableMongo =
             test <@ %query = %expected @>
 
         [<Test>]
+        let ``test nor``() =
+            let query = <@ <@ fun x -> Query.nor [ x?price = 1.99; x?qty < 20; x?sale = true ] @> |> bson @>
+            let expected = <@ BsonDocument("$nor", BsonArray([ BsonDocument("price", BsonDouble(1.99))
+                                                               BsonDocument("qty", BsonDocument("$lt", BsonInt32(20)))
+                                                               BsonDocument("sale", BsonBoolean(true)) ])) @>
+
+            test <@ %query = %expected @>
+
+        [<Test>]
         let ``test not``() =
             let query = <@ <@ fun x -> not (x?price > 1.99) @> |> bson @>
             let expected = <@ BsonDocument("price", BsonDocument("$not", BsonDocument("$gt", BsonDouble(1.99)))) @>

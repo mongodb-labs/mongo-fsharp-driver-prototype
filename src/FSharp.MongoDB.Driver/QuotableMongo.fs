@@ -83,6 +83,7 @@ module Quotations =
                 match args with
                 | [] -> Some([], typeof<unit>)
                 | [ Value (head, typ); List (tail, _) ] -> Some(head :: tail, typ)
+                | [ head; List (tail, _) ] -> Some(box head :: tail, typeof<Expr>)
                 | _ -> failwith "unexpected list union case"
 
             | _ -> None
@@ -128,6 +129,10 @@ module Quotations =
                 BsonElement(field, BsonDocument("$nin", BsonValue.Create value))
 
             | _ -> failwith "unrecognized expression"
+
+        | SpecificCall <@ Query.nor @> (_, _, [ List (subexprs, _) ]) ->
+            let subElems = subexprs |> List.map (fun q -> parser v (unbox q))
+            BsonElement("$nor", BsonArray(List.map (fun elem -> doc elem) subElems))
 
         | SpecificCall <@ not @> (_, _, [ inner ]) ->
             let innerElem = parser v inner
