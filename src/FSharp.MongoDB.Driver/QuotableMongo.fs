@@ -3,6 +3,7 @@ namespace FSharp.MongoDB.Driver
 open Microsoft.FSharp.Quotations
 open Microsoft.FSharp.Quotations.Patterns
 open Microsoft.FSharp.Quotations.DerivedPatterns
+open Microsoft.FSharp.Reflection
 
 open MongoDB.Bson
 
@@ -59,6 +60,12 @@ module Quotations =
 
     let private doc (elem : BsonElement) = BsonDocument(elem)
 
+    let inline private isGenericTypeDefinedFrom<'a> (ty : System.Type) =
+        ty.IsGenericType && ty.GetGenericTypeDefinition() = typedefof<'a>
+
+    let inline private isListUnionCase (uci : UnionCaseInfo) =
+        uci.DeclaringType |> isGenericTypeDefinedFrom<list<_>>
+
     let rec private parser v q =
         let rec (|Dynamic|_|) expr =
             match expr with
@@ -70,10 +77,23 @@ module Quotations =
 
             | _ -> None
 
+        let rec (|List|_|) expr =
+            match expr with
+            | NewUnionCase (uci, args) when uci.DeclaringType |> isGenericTypeDefinedFrom<list<_>> ->
+                match args with
+                | [] -> Some([], typeof<unit>)
+                | [ Value (head, typ); List (tail, _) ] -> Some(head :: tail, typ)
+                | _ -> failwith "unexpected list union case"
+
+            | _ -> None
+
         let (|Comparison|_|) op expr =
             match expr with
             | SpecificCall <@ %op @> (_, _, [ Dynamic(var, field); Value(value, _) ]) when var = v ->
                 Some(field, value)
+
+            | SpecificCall <@ %op @> (_, _, [ Dynamic(var, field); List(value, _) ]) when var = v ->
+                Some(field, box value)
 
             | _ -> None
 
