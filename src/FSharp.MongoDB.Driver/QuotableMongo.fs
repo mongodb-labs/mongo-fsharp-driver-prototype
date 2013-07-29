@@ -121,6 +121,12 @@ module Quotations =
             | Let (_, List (value, _), Lambda (_, SpecificCall <@ Query.all @> _)) ->
                 BsonElement(field, BsonDocument("$all", BsonValue.Create value))
 
+            | Let (_, List (value, _), Lambda (_, SpecificCall <@ Query.in' @> _)) ->
+                BsonElement(field, BsonDocument("$in", BsonValue.Create value))
+
+            | Let (_, List (value, _), Lambda (_, SpecificCall <@ Query.nin @> _)) ->
+                BsonElement(field, BsonDocument("$nin", BsonValue.Create value))
+
             | _ -> failwith "unrecognized expression"
 
         | AndAlso (lhs, rhs) ->

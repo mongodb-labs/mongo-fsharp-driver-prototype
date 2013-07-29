@@ -41,6 +41,13 @@ module QuotableMongo =
             test <@ %query = %expected @>
 
         [<Test>]
+        let ``test in``() =
+            let query = <@ <@ fun x -> x?qty |> Query.in' [ 5; 15 ] @> |> bson @>
+            let expected = <@ BsonDocument("qty", BsonDocument("$in", BsonArray([ 5; 15 ]))) @>
+
+            test <@ %query = %expected @>
+
+        [<Test>]
         let ``test less than``() =
             let query = <@ <@ fun x -> x?qty < 20 @> |> bson @>
             let expected = <@ BsonDocument("qty", BsonDocument("$lt", BsonInt32(20))) @>
@@ -58,6 +65,13 @@ module QuotableMongo =
         let ``test not equal to``() =
             let query = <@ <@ fun x -> x?qty <> 20 @> |> bson @>
             let expected = <@ BsonDocument("qty", BsonDocument("$ne", BsonInt32(20))) @>
+
+            test <@ %query = %expected @>
+
+        [<Test>]
+        let ``test not in``() =
+            let query = <@ <@ fun x -> x?qty |> Query.nin [ 5; 15 ] @> |> bson @>
+            let expected = <@ BsonDocument("qty", BsonDocument("$nin", BsonArray([5; 15]))) @>
 
             test <@ %query = %expected @>
 
