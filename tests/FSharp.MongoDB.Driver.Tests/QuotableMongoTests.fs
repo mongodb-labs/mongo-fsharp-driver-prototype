@@ -164,3 +164,21 @@ module QuotableMongo =
                                                                        BsonElement("$options", BsonString("i")) ])) @>
 
                 test <@ %query = %expected @>
+
+        [<TestFixture>]
+        module Array =
+
+            [<Test>]
+            let ``test element match``() =
+                let query = <@ <@ fun x -> x?array |> Query.elemMatch (bson <@ fun y -> y?value1 = 1 && y?value2 > 1 @>) @> |> bson @>
+                let expected = <@ BsonDocument("array", BsonDocument("$elemMatch", BsonDocument([ BsonElement("value1", BsonInt32(1))
+                                                                                                  BsonElement("value2", BsonDocument("$gt", BsonInt32(1))) ]))) @>
+
+                test <@ %query = %expected @>
+
+            [<Test>]
+            let ``test size``() =
+                let query = <@ <@ fun x -> x?field |> Query.size 2 @> |> bson @>
+                let expected = <@ BsonDocument("field", BsonDocument("$size", BsonInt32(2))) @>
+
+                test <@ %query = %expected @>
