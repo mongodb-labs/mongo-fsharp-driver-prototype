@@ -111,3 +111,22 @@ module QuotableMongo =
             let expected = <@ BsonDocument("price", BsonDocument("$not", BsonDocument("$gt", BsonDouble(1.99)))) @>
 
             test <@ %query = %expected @>
+
+[<TestFixture>]
+module Element =
+
+    [<Test>]
+    let ``test exists``() =
+        let query = <@ <@ fun x -> x?qty |> Query.exists && x?qty |> Query.nin [ 5; 15 ] @> |> bson @>
+        let expected = <@ BsonDocument("$and", BsonArray([ BsonDocument("qty", BsonDocument("$exists", BsonBoolean(true)))
+                                                           BsonDocument("qty", BsonDocument("$nin", BsonArray([ 5; 15 ]))) ])) @>
+
+        test <@ %query = %expected @>
+
+    [<Test>]
+    let ``test not exists``() =
+        let query = <@ <@ fun x -> x?qty |> Query.nexists || x?qty |> Query.in' [ 5; 15 ] @> |> bson @>
+        let expected = <@ BsonDocument("$or", BsonArray([ BsonDocument("qty", BsonDocument("$exists", BsonBoolean(false)))
+                                                          BsonDocument("qty", BsonDocument("$in", BsonArray([ 5; 15 ]))) ])) @>
+
+        test <@ %query = %expected @>

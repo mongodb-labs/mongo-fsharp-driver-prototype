@@ -31,6 +31,8 @@ module Quotations =
 
         let exists x : bool = invalidOp "not implemented"
 
+        let nexists x : bool = invalidOp "not implemented"
+
         let type' (x : BsonType) y : bool = invalidOp "not implemented"
 
         let where (x : string) y : bool = invalidOp "not implemented"
@@ -127,6 +129,12 @@ module Quotations =
 
             | Let (_, List (value, _), Lambda (_, SpecificCall <@ Query.nin @> _)) ->
                 BsonElement(field, BsonDocument("$nin", BsonValue.Create value))
+
+            | Lambda(_, SpecificCall <@ Query.exists @> _) ->
+                BsonElement(field, BsonDocument("$exists", BsonBoolean(true)))
+
+            | Lambda(_, SpecificCall <@ Query.nexists @> _) ->
+                BsonElement(field, BsonDocument("$exists", BsonBoolean(false)))
 
             | _ -> failwith "unrecognized expression"
 
