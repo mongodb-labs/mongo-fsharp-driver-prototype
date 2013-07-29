@@ -157,6 +157,20 @@ module Quotations =
                 | :? BsonType as typ -> BsonElement(field, BsonDocument("$type", BsonValue.Create typ))
                 | _ -> failwith "expected bson type"
 
+            | Let (_, SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]), Lambda (_, SpecificCall <@ Query.elemMatch @> _)) ->
+                let nestedElem = parser v q
+                let nestedDoc =
+                    if nestedElem.Name = "$and" then
+                        match nestedElem.Value with
+                        | :? BsonArray as arr ->
+                            BsonDocument(Seq.map (fun (doc : BsonDocument) -> doc.GetElement(0)) (arr.Values |> Seq.cast))
+
+                        | _ -> failwith "expected bson array"
+
+                    else doc nestedElem
+
+                BsonElement(field, BsonDocument("$elemMatch", nestedDoc))
+
             | Let (_, Int32(value), Lambda(_, SpecificCall <@ Query.size @> _)) ->
                 BsonElement(field, BsonDocument("$size", BsonInt32(value)))
 
@@ -199,7 +213,7 @@ module Quotations =
 
         | _ -> invalidOp "unrecognized pattern"
 
-    let bson (q : Expr<'a -> bool>) =
+    and bson (q : Expr<BsonDocument -> bool>) =
         match q with
         | ExprShape.ShapeLambda(v, body) -> BsonDocument(parser v body)
         | _ -> failwith "not a lambda expression"
