@@ -95,3 +95,10 @@ module QuotableMongo =
                                                                                                BsonDocument("sale", BsonBoolean(true)) ])) ])) @>
 
             test <@ %query = %expected @>
+
+        [<Test>]
+        let ``test not``() =
+            let query = <@ <@ fun x -> not (x?price > 1.99) @> |> bson @>
+            let expected = <@ BsonDocument("price", BsonDocument("$not", BsonDocument("$gt", BsonDouble(1.99)))) @>
+
+            test <@ %query = %expected @>

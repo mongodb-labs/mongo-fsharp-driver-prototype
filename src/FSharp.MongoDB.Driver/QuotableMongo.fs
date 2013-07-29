@@ -129,6 +129,11 @@ module Quotations =
 
             | _ -> failwith "unrecognized expression"
 
+        | SpecificCall <@ not @> (_, _, [ inner ]) ->
+            let innerElem = parser v inner
+            innerElem.Value <- doc <| BsonElement("$not", innerElem.Value)
+            innerElem
+
         | AndAlso (lhs, rhs) ->
             let lhsElem = parser v lhs
             let rhsElem = parser v rhs
