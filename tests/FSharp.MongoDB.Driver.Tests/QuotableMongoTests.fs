@@ -124,6 +124,13 @@ module Element =
         test <@ %query = %expected @>
 
     [<Test>]
+    let ``test mod``() =
+        let query = <@ <@ fun x -> x?qty % 4 = 0 @> |> bson @>
+        let expected = <@ BsonDocument("qty", BsonDocument("$mod", BsonArray([4; 0]))) @>
+
+        test <@ %query = %expected @>
+
+    [<Test>]
     let ``test not exists``() =
         let query = <@ <@ fun x -> x?qty |> Query.nexists || x?qty |> Query.in' [ 5; 15 ] @> |> bson @>
         let expected = <@ BsonDocument("$or", BsonArray([ BsonDocument("qty", BsonDocument("$exists", BsonBoolean(false)))

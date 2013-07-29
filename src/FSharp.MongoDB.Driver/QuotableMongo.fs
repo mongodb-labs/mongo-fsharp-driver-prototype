@@ -101,6 +101,11 @@ module Quotations =
             | _ -> None
 
         match q with
+        | SpecificCall <@ (=) @> (_, _, [ SpecificCall <@ (%) @> (_, _, [ Dynamic(var, field)
+                                                                          Value(divisor, _) ])
+                                          Value(remainder, _) ]) when var = v ->
+            BsonElement(field, BsonDocument("$mod", BsonArray([ divisor; remainder ])))
+
         | Comparison <@ (=) @> (field, value) ->
             BsonElement(field, BsonValue.Create value)
 
