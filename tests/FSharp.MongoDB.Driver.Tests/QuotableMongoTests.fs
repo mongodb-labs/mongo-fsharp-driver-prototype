@@ -144,3 +144,13 @@ module Element =
         let expected = <@ BsonDocument("price", BsonDocument("$type", BsonInt32(1))) @>
 
         test <@ %query = %expected @>
+
+[<TestFixture>]
+module JavaScript =
+
+    [<Test>]
+    let ``test where``() =
+        let query = <@ <@ fun x -> x |> Query.where "this.credits == this.debits" @> |> bson @>
+        let expected = <@ BsonDocument("$where", BsonString("this.credits == this.debits")) @>
+
+        test <@ %query = %expected @>
