@@ -157,6 +157,9 @@ module Quotations =
                 | :? BsonType as typ -> BsonElement(field, BsonDocument("$type", BsonValue.Create typ))
                 | _ -> failwith "expected bson type"
 
+            | Let (_, Int32(value), Lambda(_, SpecificCall <@ Query.size @> _)) ->
+                BsonElement(field, BsonDocument("$size", BsonInt32(value)))
+
             | _ -> failwith "unrecognized expression"
 
         | SpecificCall <@ Query.nor @> (_, _, [ List (subexprs, _) ]) ->
