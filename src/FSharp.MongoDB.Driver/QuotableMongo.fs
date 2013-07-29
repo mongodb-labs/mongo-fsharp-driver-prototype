@@ -116,6 +116,13 @@ module Quotations =
         | Comparison <@ (<=) @> (field, value) ->
             BsonElement(field, BsonDocument("$lte", BsonValue.Create value))
 
+        | SpecificCall <@ (|>) @> (_, _, [ Dynamic(var, field); subexpr ]) when var = v ->
+            match subexpr with
+            | Let (_, List (value, _), Lambda (_, SpecificCall <@ Query.all @> _)) ->
+                BsonElement(field, BsonDocument("$all", BsonValue.Create value))
+
+            | _ -> failwith "unrecognized expression"
+
         | AndAlso (lhs, rhs) ->
             let lhsElem = parser v lhs
             let rhsElem = parser v rhs

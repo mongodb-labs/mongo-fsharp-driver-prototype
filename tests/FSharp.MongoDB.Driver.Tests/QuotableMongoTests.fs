@@ -13,6 +13,13 @@ module QuotableMongo =
     module Comparison =
 
         [<Test>]
+        let ``test all``() =
+            let query = <@ <@ fun x -> x?tags |> Query.all [ "appliances"; "school"; "book" ] @> |> bson @>
+            let expected = <@ BsonDocument("tags", BsonDocument("$all", BsonArray([ "appliances"; "school"; "book" ]))) @>
+
+            test <@ %query = %expected @>
+
+        [<Test>]
         let ``test equal to``() =
             let query = <@ <@ fun x -> x?qty = 20 @> |> bson @>
             let expected = <@ BsonDocument("qty", BsonInt32(20)) @>
