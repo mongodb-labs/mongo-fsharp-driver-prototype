@@ -124,6 +124,13 @@ module Quotations =
         | Comparison <@ (<=) @> (field, value) ->
             BsonElement(field, BsonDocument("$lte", BsonValue.Create value))
 
+        | SpecificCall <@ (=~) @> (_, _, [ Dynamic(var, field); String(pcre) ]) when var = v ->
+            let index = pcre.LastIndexOf('/')
+            let regex = pcre.Substring(1, index - 1)
+            let options = pcre.Substring(index + 1)
+            BsonElement(field, BsonDocument([ BsonElement("$regex", BsonString(regex))
+                                              BsonElement("$options", BsonString(options)) ]))
+
         | SpecificCall <@ (|>) @> (_, _, [ Var(var)
                                            Let (_, String(js), Lambda (_, SpecificCall <@ Query.where @> _)) ]) when var = v ->
             BsonElement("$where", BsonString(js))

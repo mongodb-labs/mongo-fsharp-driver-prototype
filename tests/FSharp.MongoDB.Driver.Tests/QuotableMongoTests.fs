@@ -154,3 +154,11 @@ module JavaScript =
         let expected = <@ BsonDocument("$where", BsonString("this.credits == this.debits")) @>
 
         test <@ %query = %expected @>
+
+    [<Test>]
+    let ``test regex``() =
+        let query = <@ <@ fun x -> x?field =~ "/acme.*corp/i" @> |> bson @>
+        let expected = <@ BsonDocument("field", BsonDocument([ BsonElement("$regex", BsonString("acme.*corp"))
+                                                               BsonElement("$options", BsonString("i")) ])) @>
+
+        test <@ %query = %expected @>
