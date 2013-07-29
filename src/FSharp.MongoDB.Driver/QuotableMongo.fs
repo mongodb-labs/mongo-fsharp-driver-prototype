@@ -141,6 +141,11 @@ module Quotations =
             | Lambda(_, SpecificCall <@ Query.nexists @> _) ->
                 BsonElement(field, BsonDocument("$exists", BsonBoolean(false)))
 
+            | Let (_, Value(value, _), Lambda (_, SpecificCall <@ Query.type' @> _)) ->
+                match value with
+                | :? BsonType as typ -> BsonElement(field, BsonDocument("$type", BsonValue.Create typ))
+                | _ -> failwith "expected bson type"
+
             | _ -> failwith "unrecognized expression"
 
         | SpecificCall <@ Query.nor @> (_, _, [ List (subexprs, _) ]) ->

@@ -137,3 +137,10 @@ module Element =
                                                           BsonDocument("qty", BsonDocument("$in", BsonArray([ 5; 15 ]))) ])) @>
 
         test <@ %query = %expected @>
+
+    [<Test>]
+    let ``test type``() =
+        let query = <@ <@ fun x -> x?price |> Query.type' BsonType.Double @> |> bson @>
+        let expected = <@ BsonDocument("price", BsonDocument("$type", BsonInt32(1))) @>
+
+        test <@ %query = %expected @>
