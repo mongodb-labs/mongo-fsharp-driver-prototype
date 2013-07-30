@@ -72,7 +72,7 @@ module Quotations =
     let inline private isListUnionCase (uci : UnionCaseInfo) =
         uci.DeclaringType |> isGenericTypeDefinedFrom<list<_>>
 
-    let rec private parser v q =
+    let rec private queryParser v q =
         let rec (|Dynamic|_|) expr =
             match expr with
             | SpecificCall <@ (?) @> (_, _, [ Var(var); String(field) ]) ->
@@ -162,7 +162,7 @@ module Quotations =
                 | _ -> failwith "expected bson type"
 
             | Let (_, SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]), Lambda (_, SpecificCall <@ Query.elemMatch @> _)) ->
-                let nestedElem = parser v q
+                let nestedElem = queryParser v q
                 let nestedDoc =
                     if nestedElem.Name = "$and" then
                         match nestedElem.Value with
@@ -181,17 +181,17 @@ module Quotations =
             | _ -> failwith "unrecognized expression"
 
         | SpecificCall <@ Query.nor @> (_, _, [ List (subexprs, _) ]) ->
-            let subElems = subexprs |> List.map (fun q -> parser v (unbox q))
+            let subElems = subexprs |> List.map (fun q -> queryParser v (unbox q))
             BsonElement("$nor", BsonArray(List.map (fun elem -> doc elem) subElems))
 
         | SpecificCall <@ not @> (_, _, [ inner ]) ->
-            let innerElem = parser v inner
+            let innerElem = queryParser v inner
             innerElem.Value <- doc <| BsonElement("$not", innerElem.Value)
             innerElem
 
         | AndAlso (lhs, rhs) ->
-            let lhsElem = parser v lhs
-            let rhsElem = parser v rhs
+            let lhsElem = queryParser v lhs
+            let rhsElem = queryParser v rhs
 
             if lhsElem.Name = "$and" then
                 match lhsElem.Value with
@@ -203,8 +203,8 @@ module Quotations =
             else BsonElement("$and", BsonArray([ doc lhsElem; doc rhsElem ]))
 
         | OrElse (lhs, rhs) ->
-            let lhsElem = parser v lhs
-            let rhsElem = parser v rhs
+            let lhsElem = queryParser v lhs
+            let rhsElem = queryParser v rhs
 
             if lhsElem.Name = "$or" then
                 match lhsElem.Value with
@@ -217,7 +217,50 @@ module Quotations =
 
         | _ -> invalidOp "unrecognized pattern"
 
-    and bson (q : Expr<BsonDocument -> bool>) =
-        match q with
-        | ExprShape.ShapeLambda(v, body) -> BsonDocument(parser v body)
-        | _ -> failwith "not a lambda expression"
+    and private updateParser v q =
+        let rec (|Dynamic|_|) expr =
+            match expr with
+            | SpecificCall <@ (?) @> (_, _, [ Var(var); String(field) ]) ->
+                Some(var, field)
+
+            | SpecificCall <@ (?) @> (_, _, [ Dynamic(var, subdoc); String(field) ]) ->
+                Some(var, sprintf "%s.%s" subdoc field)
+
+            | _ -> None
+
+        let (|DynamicAssignment|_|) expr =
+            match expr with
+            | SpecificCall <@ (?<-) @> (_, _, [ Var(var); String(field) ]) ->
+                Some(var, field)
+
+            | SpecificCall <@ (?<-) @> (_, _, [ Dynamic(var, subdoc); String(field) ]) ->
+                Some(var, sprintf "%s.%s" subdoc field)
+
+            | _ -> None
+
+        let rec (|List|_|) expr =
+            match expr with
+            | NewUnionCase (uci, args) when uci.DeclaringType |> isGenericTypeDefinedFrom<list<_>> ->
+                match args with
+                | [] -> Some([], typeof<unit>)
+                | [ Value (head, typ); List (tail, _) ] -> Some(head :: tail, typ)
+                | [ head; List (tail, _) ] -> Some(box head :: tail, typeof<Expr>)
+                | _ -> failwith "unexpected list union case"
+
+            | _ -> None
+
+        BsonDocument()
+
+    and bson (q : Expr<'a -> 'b>) =
+        match box q with
+        | :? Expr<'a -> bool> as q ->
+            match q with
+            | ExprShape.ShapeLambda (v, body) -> BsonDocument(queryParser v body)
+            | _ -> failwith "expected lambda expression"
+
+        | :? Expr<'a -> unit list> as q ->
+            match q with
+            | ExprShape.ShapeLambda (v, body) -> updateParser v body
+            | _ -> failwith "expected lambda expression"
+
+        | _ -> failwith "unrecognized expression"
