@@ -224,6 +224,104 @@ module QuotableMongo =
                 test <@ %query = %expected @>
 
         [<TestFixture>]
+        module Array =
+
+            [<Test>]
+            let ``test $``() =
+                let query = <@ <@ fun x -> [ x ? grades ? ``$`` <- 82 ] @> |> bson @>
+                let expected = <@ BsonDocument("$set", BsonDocument("grades.$", BsonInt32(82))) @>
+
+                test <@ %query = %expected @>
+
+            [<Test>]
+            let ``test add to set``() =
+                let query = <@ <@ fun x -> [ x?scores <- Update.addToSet 89 ] @> |> bson @>
+                let expected = <@ BsonDocument("$addToSet", BsonDocument("scores", BsonInt32(89))) @>
+
+                test <@  %query = %expected @>
+
+            [<Test>]
+            let ``test pop left``() =
+                let query = <@ <@ fun x -> [ x?field <- Update.popleft ] @> |> bson @>
+                let expected = <@ BsonDocument("$pop", BsonDocument("field", BsonInt32(-1))) @>
+
+                test <@ %query = %expected @>
+
+            [<Test>]
+            let ``test pop right``() =
+                let query = <@ <@ fun x -> [ x?field <- Update.popright ] @> |> bson @>
+                let expected = <@ BsonDocument("$pop", BsonDocument("field", BsonInt32(1))) @>
+
+                test <@ %query = %expected @>
+
+            [<Test>]
+            let ``test pull``() =
+                let query = <@ <@ fun x -> [ x?grades <- Update.pull (bson <@ fun y -> y?mean = 75 @>) ] @> |> bson @>
+                let expected = <@ BsonDocument("$pull", BsonDocument("grades", BsonDocument("mean", BsonInt32(75)))) @>
+
+                test <@ %query = %expected @>
+
+            [<Test>]
+            let ``test pull all``() =
+                let query = <@ <@ fun x -> [ x?grades <- Update.pullAll [ 80; 88; 85 ] ] @> |> bson @>
+                let expected = <@ BsonDocument("$pullAll", BsonDocument("grades", BsonArray([ 80; 88; 85 ]))) @>
+
+                test <@ %query = %expected @>
+
+            [<Test>]
+            let ``test push``() =
+                let query = <@ <@ fun x -> [ x?scores <- Update.push 89 ] @> |> bson @>
+                let expected = <@ BsonDocument("$push", BsonDocument("scores", BsonInt32(89))) @>
+
+                test <@ %query = %expected @>
+
+            [<Test>]
+            let ``test add to set with each modifier``() =
+                let query = <@ <@ fun x -> [ x?grades <- Update.each Update.addToSet [ 80; 78; 86 ] ] @> |> bson @>
+                let expected = <@ BsonDocument("$addToSet", BsonDocument("grades", BsonDocument("$each", BsonArray([ 80; 78; 86 ])))) @>
+
+                test <@ %query = %expected @>
+
+            [<Test>]
+            let ``test push with each modifier``() =
+                let query = <@ <@ fun x -> [ x?grades <- Update.each Update.push [ 80; 78; 86 ] ] @> |> bson @>
+                let expected = <@ BsonDocument("$push", BsonDocument("grades", BsonDocument("$each", BsonArray([ 80; 78; 86 ])))) @>
+
+                test <@ %query = %expected @>
+
+            [<Test>]
+            let ``test push with slice modifier``() =
+                let query = <@ <@ fun x -> [ x?grades <- Update.each Update.push [ 80; 78; 86 ] >> Update.slice -5 ] @> |> bson @>
+                let expected = <@ BsonDocument("$push", BsonDocument("grades", BsonDocument([ BsonElement("$each", BsonArray([ 80; 78; 86 ]))
+                                                                                              BsonElement("$slice", BsonInt32(-5)) ]))) @>
+
+                test <@ %query = %expected @>
+
+            type private Quiz = {
+                Id : int
+                Score : int
+            }
+
+            [<Test>]
+            let ``test push with sort modifier``() =
+                let query = <@ <@ fun (x : BsonDocument) -> [ x?quizzes <- Update.each Update.push [ { Id = 3; Score = 8 }
+                                                                                                     { Id = 4; Score = 7 }
+                                                                                                     { Id = 5; Score = 6 } ]
+                                                                        >> Update.sort (bson <@ fun (y : BsonDocument) -> y?score = 1 @>)
+                                                                        >> Update.slice -5 ] @> |> bson @>
+
+                let quiz3 = BsonDocument([ BsonElement("id", BsonInt32(3)); BsonElement("score", BsonInt32(8)) ])
+                let quiz4 = BsonDocument([ BsonElement("id", BsonInt32(4)); BsonElement("score", BsonInt32(7)) ])
+                let quiz5 = BsonDocument([ BsonElement("id", BsonInt32(5)); BsonElement("score", BsonInt32(6)) ])
+
+                let expected =
+                    <@ BsonDocument("$push", BsonDocument("quizzes", BsonDocument([ BsonElement("$each", BsonArray([ quiz3; quiz4; quiz5 ]))
+                                                                                    BsonElement("$sort", BsonDocument("score", BsonInt32(1)))
+                                                                                    BsonElement("$slice", BsonInt32(-5)) ]))) @>
+
+                test <@ %query = %expected @>
+
+        [<TestFixture>]
         module Bitwise =
 
             [<Test>]
