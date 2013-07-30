@@ -282,6 +282,13 @@ module Quotations =
                 | Lambda (_, SpecificCall <@ Update.popright @> _) ->
                     BsonElement("$pop", BsonDocument(field, BsonInt32(1)))
 
+                | Let (_, SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]), Lambda (_, SpecificCall <@ Update.pull @> _)) ->
+                    let nestedElem = queryParser v q
+                    BsonElement("$pull", BsonDocument(field, doc nestedElem))
+
+                | Let (_, List (values, _), Lambda (_, SpecificCall <@ Update.pullAll @> _)) ->
+                    BsonElement("$pullAll", BsonDocument(field, BsonArray(values)))
+
                 | Let (_, Int32 (value), Lambda (_, SpecificCall <@ (&&&) @> _)) ->
                     BsonElement("$bit", BsonDocument(field, BsonDocument("and", BsonInt32(value))))
 
