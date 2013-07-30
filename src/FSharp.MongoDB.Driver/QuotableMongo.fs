@@ -276,6 +276,12 @@ module Quotations =
                 | Let (_, List (values, _), Lambda (_, SpecificCall <@ Update.addToSet @> _)) ->
                     BsonElement("$addToSet", BsonDocument(field, BsonArray(values)))
 
+                | Lambda (_, SpecificCall <@ Update.popleft @> _) ->
+                    BsonElement("$pop", BsonDocument(field, BsonInt32(-1)))
+
+                | Lambda (_, SpecificCall <@ Update.popright @> _) ->
+                    BsonElement("$pop", BsonDocument(field, BsonInt32(1)))
+
                 | Let (_, Int32 (value), Lambda (_, SpecificCall <@ (&&&) @> _)) ->
                     BsonElement("$bit", BsonDocument(field, BsonDocument("and", BsonInt32(value))))
 
