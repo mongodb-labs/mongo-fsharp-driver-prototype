@@ -182,3 +182,22 @@ module QuotableMongo =
                 let expected = <@ BsonDocument("field", BsonDocument("$size", BsonInt32(2))) @>
 
                 test <@ %query = %expected @>
+
+    module Update =
+
+        [<TestFixture>]
+        module Fields =
+
+            [<Test>]
+            let ``test increment``() =
+                let query = <@ <@ fun x -> [ x?age <- (+) 1 ] @> |> bson @>
+                let expected = <@ BsonDocument("$inc", BsonDocument("age", BsonInt32(1))) @>
+
+                test <@ %query = %expected @>
+
+            [<Test>]
+            let ``test decrement``() =
+                let query = <@ <@ fun x -> [ x?age <- (-) 2 ] @> |> bson @>
+                let expected = <@ BsonDocument("$inc", BsonDocument("age", BsonInt32(-2))) @>
+
+                test <@ %query = %expected @>

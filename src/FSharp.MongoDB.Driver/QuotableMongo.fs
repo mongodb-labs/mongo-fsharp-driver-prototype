@@ -230,11 +230,11 @@ module Quotations =
 
         let (|DynamicAssignment|_|) expr =
             match expr with
-            | SpecificCall <@ (?<-) @> (_, _, [ Var(var); String(field) ]) ->
-                Some(var, field)
+            | SpecificCall <@ (?<-) @> (_, _, [ Var(var); String(field); value ]) ->
+                Some(var, field, value)
 
-            | SpecificCall <@ (?<-) @> (_, _, [ Dynamic(var, subdoc); String(field) ]) ->
-                Some(var, sprintf "%s.%s" subdoc field)
+            | SpecificCall <@ (?<-) @> (_, _, [ Dynamic(var, subdoc); String(field); value ]) ->
+                Some(var, sprintf "%s.%s" subdoc field, value)
 
             | _ -> None
 
@@ -249,7 +249,25 @@ module Quotations =
 
             | _ -> None
 
-        BsonDocument()
+        let single expr =
+            match expr with
+            | DynamicAssignment (var, field, value) when var = v ->
+                match value with
+                | Let (_, Int32(value), Lambda (_, SpecificCall <@ (+) @> _)) ->
+                    BsonElement("$inc", BsonDocument(field, BsonInt32(value)))
+
+                | Let (_, Int32(value), Lambda (_, SpecificCall <@ (-) @> _)) ->
+                    BsonElement("$inc", BsonDocument(field, BsonInt32(-value)))
+
+                | _ -> failwith "unrecognized expression"
+
+            | _ -> failwith "unrecognized pattern"
+
+        match q with
+        | List (subexprs, _) ->
+            BsonDocument(List.map (unbox >> single) subexprs)
+
+        | _ -> failwith "expected unit list"
 
     and bson (q : Expr<'a -> 'b>) =
         match box q with
