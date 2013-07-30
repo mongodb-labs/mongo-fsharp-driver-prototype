@@ -222,3 +222,20 @@ module QuotableMongo =
                 let expected = <@ BsonDocument("$unset", BsonDocument("qty", BsonInt32(1))) @>
 
                 test <@ %query = %expected @>
+
+        [<TestFixture>]
+        module Bitwise =
+
+            [<Test>]
+            let ``test bitwise and``() =
+                let query = <@ <@ fun x -> [ x?field <- (&&&) 5 ] @> |> bson @>
+                let expected = <@ BsonDocument("$bit", BsonDocument("field", BsonDocument("and", BsonInt32(5)))) @>
+
+                test <@ %query = %expected @>
+
+            [<Test>]
+            let ``test bitwise or``() =
+                let query = <@ <@ fun x -> [ x?field <- (|||) 5 ] @> |> bson @>
+                let expected = <@ BsonDocument("$bit", BsonDocument("field", BsonDocument("or", BsonInt32(5)))) @>
+
+                test <@ %query = %expected @>

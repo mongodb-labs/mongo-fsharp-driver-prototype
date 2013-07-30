@@ -268,6 +268,12 @@ module Quotations =
                 | NewUnionCase (uci, []) when uci.DeclaringType |> isGenericTypeDefinedFrom<option<_>> ->
                     BsonElement("$unset", BsonDocument(field, BsonInt32(1)))
 
+                | Let (_, Int32 (value), Lambda (_, SpecificCall <@ (&&&) @> _)) ->
+                    BsonElement("$bit", BsonDocument(field, BsonDocument("and", BsonInt32(value))))
+
+                | Let (_, Int32 (value), Lambda (_, SpecificCall <@ (|||) @> _)) ->
+                    BsonElement("$bit", BsonDocument(field, BsonDocument("or", BsonInt32(value))))
+
                 | _ -> failwith "unrecognized expression"
 
             | _ -> failwith "unrecognized pattern"
