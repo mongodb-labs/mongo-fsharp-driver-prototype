@@ -44,6 +44,10 @@ module Quotations =
     [<RequireQualifiedAccess>]
     module Update =
 
+        let rename (x : (string * string) list) (y : 'a) : 'a = invalidOp "not implemented"
+
+        let setOnInsert (x : unit list) (y : 'a) : 'a = invalidOp "not implemented"
+
         let addToSet (x : 'a) (y : 'a list) : 'a list = invalidOp "not implemented"
 
         let popleft (x : 'a list) : 'a list = invalidOp "not implemented"
