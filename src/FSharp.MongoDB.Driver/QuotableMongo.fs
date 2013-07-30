@@ -259,6 +259,15 @@ module Quotations =
                 | Let (_, Int32(value), Lambda (_, SpecificCall <@ (-) @> _)) ->
                     BsonElement("$inc", BsonDocument(field, BsonInt32(-value)))
 
+                | Value (value, _) ->
+                    BsonElement("$set", BsonDocument(field, BsonValue.Create value))
+
+                | List (values, _) ->
+                    BsonElement("$set", BsonDocument(field, BsonArray(values)))
+
+                | NewUnionCase (uci, []) when uci.DeclaringType |> isGenericTypeDefinedFrom<option<_>> ->
+                    BsonElement("$unset", BsonDocument(field, BsonInt32(1)))
+
                 | _ -> failwith "unrecognized expression"
 
             | _ -> failwith "unrecognized pattern"

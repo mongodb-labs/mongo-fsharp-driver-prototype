@@ -201,3 +201,24 @@ module QuotableMongo =
                 let expected = <@ BsonDocument("$inc", BsonDocument("age", BsonInt32(-2))) @>
 
                 test <@ %query = %expected @>
+
+            [<Test>]
+            let ``test set``() =
+                let query = <@ <@ fun x -> [ x?qty <- 20 ] @> |> bson @>
+                let expected = <@ BsonDocument("$set", BsonDocument("qty", BsonInt32(20))) @>
+
+                test <@ %query = %expected @>
+
+            [<Test>]
+            let ``test set list``() =
+                let query = <@ <@ fun x -> [ x?tags <- [ "appliances"; "school"; "book" ] ] @> |> bson @>
+                let expected = <@ BsonDocument("$set", BsonDocument("tags", BsonArray([ "appliances"; "school"; "book" ]))) @>
+
+                test <@ %query = %expected @>
+
+            [<Test>]
+            let ``test unset``() =
+                let query = <@ <@ fun x -> [ x?qty <- None ] @> |> bson @>
+                let expected = <@ BsonDocument("$unset", BsonDocument("qty", BsonInt32(1))) @>
+
+                test <@ %query = %expected @>
