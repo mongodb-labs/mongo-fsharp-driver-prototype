@@ -289,6 +289,12 @@ module Quotations =
                 | Let (_, List (values, _), Lambda (_, SpecificCall <@ Update.pullAll @> _)) ->
                     BsonElement("$pullAll", BsonDocument(field, BsonArray(values)))
 
+                | Let (_, Value (value, _), Lambda (_, SpecificCall <@ Update.push @> _)) ->
+                    BsonElement("$push", BsonDocument(field, BsonValue.Create value))
+
+                | Let (_, List (values, _), Lambda (_, SpecificCall <@ Update.push @> _)) ->
+                    BsonElement("$push", BsonDocument(field, BsonArray(values)))
+
                 | Let (_, Int32 (value), Lambda (_, SpecificCall <@ (&&&) @> _)) ->
                     BsonElement("$bit", BsonDocument(field, BsonDocument("and", BsonInt32(value))))
 
