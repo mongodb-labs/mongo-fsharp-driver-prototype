@@ -270,6 +270,12 @@ module Quotations =
                 | NewUnionCase (uci, []) when uci.DeclaringType |> isGenericTypeDefinedFrom<option<_>> ->
                     BsonElement("$unset", BsonDocument(field, BsonInt32(1)))
 
+                | Let (_, Value (value, _), Lambda (_, SpecificCall <@ Update.addToSet @> _)) ->
+                    BsonElement("$addToSet", BsonDocument(field, BsonValue.Create value))
+
+                | Let (_, List (values, _), Lambda (_, SpecificCall <@ Update.addToSet @> _)) ->
+                    BsonElement("$addToSet", BsonDocument(field, BsonArray(values)))
+
                 | Let (_, Int32 (value), Lambda (_, SpecificCall <@ (&&&) @> _)) ->
                     BsonElement("$bit", BsonDocument(field, BsonDocument("and", BsonInt32(value))))
 
