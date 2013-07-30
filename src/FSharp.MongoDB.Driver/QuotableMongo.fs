@@ -54,6 +54,8 @@ module Quotations =
 
         let popright (x : 'a list) : 'a list = invalidOp "not implemented"
 
+        let pull (x : 'a) (y : 'b list) : 'b list = invalidOp "not implemented"
+
         let pullAll (x : 'a list) (y : 'a list) : 'a list = invalidOp "not implemented"
 
         let push (x : 'a) (y : 'a list) : 'a list = invalidOp "not implemented"
