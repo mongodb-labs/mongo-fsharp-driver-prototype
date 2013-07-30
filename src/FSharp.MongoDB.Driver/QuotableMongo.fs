@@ -252,9 +252,8 @@ module Quotations =
             | _ -> None
 
         let single expr =
-            match expr with
-            | DynamicAssignment (var, field, value) when var = v ->
-                match value with
+            let rec traverse field q =
+                match q with
                 | Let (_, Int32(value), Lambda (_, SpecificCall <@ (+) @> _)) ->
                     BsonElement("$inc", BsonDocument(field, BsonInt32(value)))
 
@@ -305,6 +304,15 @@ module Quotations =
 
                     | _ -> failwith "unrecognized operation with Update.each"
 
+                | SpecificCall <@ (>>) @> (_, _, [ inner; Let (_, Int32(value), Lambda (_, SpecificCall <@ Update.slice @> _)) ]) ->
+                    let innerElem = traverse field inner
+                    match innerElem.Value.[0] with // e.g. { $push: { <field>: { $each ... } }
+                    | :? BsonDocument as doc ->
+                        doc.Add(BsonElement("$slice", BsonInt32(value))) |> ignore
+                        innerElem
+
+                    | _ -> failwith "expected bson document"
+
                 | Let (_, Int32 (value), Lambda (_, SpecificCall <@ (&&&) @> _)) ->
                     BsonElement("$bit", BsonDocument(field, BsonDocument("and", BsonInt32(value))))
 
@@ -312,6 +320,9 @@ module Quotations =
                     BsonElement("$bit", BsonDocument(field, BsonDocument("or", BsonInt32(value))))
 
                 | _ -> failwith "unrecognized expression"
+
+            match expr with
+            | DynamicAssignment (var, field, value) when var = v -> traverse field value
 
             | _ -> failwith "unrecognized pattern"
 
