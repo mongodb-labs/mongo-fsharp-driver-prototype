@@ -295,6 +295,16 @@ module Quotations =
                 | Let (_, List (values, _), Lambda (_, SpecificCall <@ Update.push @> _)) ->
                     BsonElement("$push", BsonDocument(field, BsonArray(values)))
 
+                | Let (_, op, Let (_, List (values, _), Lambda (_, SpecificCall <@ Update.each @> _))) ->
+                    match op with
+                    | Lambda (_, Lambda (_, SpecificCall <@ Update.addToSet @> _)) ->
+                        BsonElement("$addToSet", BsonDocument(field, BsonDocument("$each", BsonArray(values))))
+
+                    | Lambda (_, Lambda (_, SpecificCall <@ Update.push @> _)) ->
+                        BsonElement("$push", BsonDocument(field, BsonDocument("$each", BsonArray(values))))
+
+                    | _ -> failwith "unrecognized operation with Update.each"
+
                 | Let (_, Int32 (value), Lambda (_, SpecificCall <@ (&&&) @> _)) ->
                     BsonElement("$bit", BsonDocument(field, BsonDocument("and", BsonInt32(value))))
 
