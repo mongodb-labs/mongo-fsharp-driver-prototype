@@ -344,6 +344,15 @@ module Quotations =
             match expr with
             | DynamicAssignment (var, field, value) when var = v -> traverse field value
 
+            | SpecificCall <@ (|>) @> (_, _, [ SpecificCall <@ (|>) @> (_, _, [ Var (var); Let (_, List (values, _), Lambda (_, SpecificCall <@ Update.rename @> _)) ])
+                                               Lambda (_, SpecificCall <@ ignore @> _) ]) when var = v ->
+                let zipTransform expr =
+                    match expr with
+                    | NewTuple ([ String (left); String (right) ]) -> BsonElement(left, BsonString(right))
+                    | _ -> failwith "expected (string * string) tuple"
+
+                BsonElement("$rename", BsonDocument(List.map (unbox >> zipTransform) values))
+
             | _ -> failwith "unrecognized pattern"
 
         match q with

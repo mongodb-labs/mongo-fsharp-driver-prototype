@@ -203,6 +203,14 @@ module QuotableMongo =
                 test <@ %query = %expected @>
 
             [<Test>]
+            let ``test rename``() =
+                let query = <@ <@ fun x -> [ x |> Update.rename [ ("nickname", "alias"); ("cell", "mobile") ] |> ignore ] @> |> bson @>
+                let expected = <@ BsonDocument("$rename", BsonDocument([ BsonElement("nickname", BsonString("alias"))
+                                                                         BsonElement("cell", BsonString("mobile")) ])) @>
+
+                test <@ %query = %expected @>
+
+            [<Test>]
             let ``test set``() =
                 let query = <@ <@ fun x -> [ x?qty <- 20 ] @> |> bson @>
                 let expected = <@ BsonDocument("$set", BsonDocument("qty", BsonInt32(20))) @>
