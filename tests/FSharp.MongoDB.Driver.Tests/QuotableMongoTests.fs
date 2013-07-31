@@ -297,22 +297,15 @@ module QuotableMongo =
 
                 test <@ %query = %expected @>
 
-            type private Quiz = {
-                Id : int
-                Score : int
-            }
-
             [<Test>]
             let ``test push with sort modifier``() =
-                let query = <@ <@ fun (x : BsonDocument) -> [ x?quizzes <- Update.each Update.push [ { Id = 3; Score = 8 }
-                                                                                                     { Id = 4; Score = 7 }
-                                                                                                     { Id = 5; Score = 6 } ]
-                                                                        >> Update.sort (bson <@ fun (y : BsonDocument) -> y?score = 1 @>)
-                                                                        >> Update.slice -5 ] @> |> bson @>
-
                 let quiz3 = BsonDocument([ BsonElement("id", BsonInt32(3)); BsonElement("score", BsonInt32(8)) ])
                 let quiz4 = BsonDocument([ BsonElement("id", BsonInt32(4)); BsonElement("score", BsonInt32(7)) ])
                 let quiz5 = BsonDocument([ BsonElement("id", BsonInt32(5)); BsonElement("score", BsonInt32(6)) ])
+
+                let query = <@ <@ fun (x : BsonDocument) -> [ x?quizzes <- Update.each Update.push [ quiz3; quiz4; quiz5 ]
+                                                                        >> Update.sort (bson <@ fun (y : BsonDocument) -> y?score = 1 @>)
+                                                                        >> Update.slice -5 ] @> |> bson @>
 
                 let expected =
                     <@ BsonDocument("$push", BsonDocument("quizzes", BsonDocument([ BsonElement("$each", BsonArray([ quiz3; quiz4; quiz5 ]))

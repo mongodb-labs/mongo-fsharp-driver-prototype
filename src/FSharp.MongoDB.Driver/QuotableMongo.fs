@@ -313,6 +313,26 @@ module Quotations =
 
                     | _ -> failwith "expected bson document"
 
+                | SpecificCall <@ (>>) @> (_, _, [ inner; Let (_, SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]), Lambda (_, SpecificCall <@ Update.sort @> _)) ]) ->
+                    let nestedElem = queryParser v q
+                    let nestedDoc =
+                        if nestedElem.Name = "$and" then
+                            match nestedElem.Value with
+                            | :? BsonArray as arr ->
+                                BsonDocument(Seq.map (fun (doc : BsonDocument) -> doc.GetElement(0)) (arr.Values |> Seq.cast))
+
+                            | _ -> failwith "expected bson array"
+
+                        else doc nestedElem
+
+                    let innerElem = traverse field inner
+                    match innerElem.Value.[0] with // e.g. { $push: { <field>: { $each ... } }
+                    | :? BsonDocument as bdoc ->
+                        bdoc.Add(BsonElement("$sort", nestedDoc)) |> ignore
+                        innerElem
+
+                    | _ -> failwith "expected bson document"
+
                 | Let (_, Int32 (value), Lambda (_, SpecificCall <@ (&&&) @> _)) ->
                     BsonElement("$bit", BsonDocument(field, BsonDocument("and", BsonInt32(value))))
 
