@@ -75,6 +75,16 @@ module Quotations =
         uci.DeclaringType |> isGenericTypeDefinedFrom<list<_>>
 
     let rec private queryParser v q =
+        let rec (|Property|_|) expr =
+            match expr with
+            | PropertyGet (Some(Var (var)), prop, []) ->
+                Some(var, prop.Name)
+
+            | PropertyGet (Some(Property (var, subdoc)), prop, []) ->
+                Some(var, sprintf "%s.%s" subdoc prop.Name)
+
+            | _ -> None
+
         let rec (|Dynamic|_|) expr =
             match expr with
             | SpecificCall <@ (?) @> (_, _, [ Var(var); String(field) ]) ->
@@ -83,6 +93,15 @@ module Quotations =
             | SpecificCall <@ (?) @> (_, _, [ Dynamic(var, subdoc); String(field) ]) ->
                 Some(var, sprintf "%s.%s" subdoc field)
 
+            | Property (var, field) ->
+                Some(var, field)
+
+            | _ -> None
+
+        let (|DynamicOrProperty|_|) expr =
+            match expr with
+            | Dynamic (var, field) -> Some(var, field)
+            | Property (var, field) -> Some(var, field)
             | _ -> None
 
         let rec (|List|_|) expr =
@@ -98,18 +117,18 @@ module Quotations =
 
         let (|Comparison|_|) op expr =
             match expr with
-            | SpecificCall <@ %op @> (_, _, [ Dynamic(var, field); Value(value, _) ]) when var = v ->
+            | SpecificCall <@ %op @> (_, _, [ DynamicOrProperty (var, field); Value (value, _) ]) when var = v ->
                 Some(field, value)
 
-            | SpecificCall <@ %op @> (_, _, [ Dynamic(var, field); List(value, _) ]) when var = v ->
+            | SpecificCall <@ %op @> (_, _, [ DynamicOrProperty (var, field); List (value, _) ]) when var = v ->
                 Some(field, box value)
 
             | _ -> None
 
         match q with
-        | SpecificCall <@ (=) @> (_, _, [ SpecificCall <@ (%) @> (_, _, [ Dynamic(var, field)
-                                                                          Value(divisor, _) ])
-                                          Value(remainder, _) ]) when var = v ->
+        | SpecificCall <@ (=) @> (_, _, [ SpecificCall <@ (%) @> (_, _, [ DynamicOrProperty (var, field)
+                                                                          Value (divisor, _) ])
+                                          Value (remainder, _) ]) when var = v ->
             BsonElement(field, BsonDocument("$mod", BsonArray([ divisor; remainder ])))
 
         | Comparison <@ (=) @> (field, value) ->
@@ -130,7 +149,7 @@ module Quotations =
         | Comparison <@ (<=) @> (field, value) ->
             BsonElement(field, BsonDocument("$lte", BsonValue.Create value))
 
-        | SpecificCall <@ (=~) @> (_, _, [ Dynamic(var, field); String(pcre) ]) when var = v ->
+        | SpecificCall <@ (=~) @> (_, _, [ DynamicOrProperty(var, field); String(pcre) ]) when var = v ->
             let index = pcre.LastIndexOf('/')
             let regex = pcre.Substring(1, index - 1)
             let options = pcre.Substring(index + 1)
@@ -141,7 +160,7 @@ module Quotations =
                                            Let (_, String(js), Lambda (_, SpecificCall <@ Query.where @> _)) ]) when var = v ->
             BsonElement("$where", BsonString(js))
 
-        | SpecificCall <@ (|>) @> (_, _, [ Dynamic(var, field); subexpr ]) when var = v ->
+        | SpecificCall <@ (|>) @> (_, _, [ DynamicOrProperty(var, field); subexpr ]) when var = v ->
             match subexpr with
             | Let (_, List (value, _), Lambda (_, SpecificCall <@ Query.all @> _)) ->
                 BsonElement(field, BsonDocument("$all", BsonValue.Create value))
