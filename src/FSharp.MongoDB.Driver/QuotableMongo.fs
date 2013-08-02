@@ -305,13 +305,29 @@ module Quotations =
 
             | _ -> None
 
+        let rec (|DeSugared|_|) v f op expr =
+            match expr with
+            | Let (_, value, Lambda (_, SpecificCall <@ %op @> _)) ->
+                Some(value)
+
+            | SpecificCall <@ (|>) @> (_, _, [ DynamicOrProperty (var, field)
+                                               DeSugared v f op (value) ]) when var = v && field = f->
+                Some(value)
+
+            // infix operator
+            | SpecificCall <@ %op @> (_, _, [ DynamicOrProperty (var, field)
+                                              value ]) when var = v && field = f ->
+                Some(value)
+
+            | _ -> None
+
         let single expr =
-            let rec traverse field q =
+            let rec traverse var field q =
                 match q with
-                | Let (_, Int32(value), Lambda (_, SpecificCall <@ (+) @> _)) ->
+                | DeSugared var field <@ (+) @> (Int32 (value)) ->
                     BsonElement("$inc", BsonDocument(field, BsonInt32(value)))
 
-                | Let (_, Int32(value), Lambda (_, SpecificCall <@ (-) @> _)) ->
+                | DeSugared var field <@ (-) @> (Int32 (value)) ->
                     BsonElement("$inc", BsonDocument(field, BsonInt32(-value)))
 
                 | Value (value, _) ->
@@ -359,7 +375,7 @@ module Quotations =
                     | _ -> failwith "unrecognized operation with Update.each"
 
                 | SpecificCall <@ (>>) @> (_, _, [ inner; Let (_, Int32(value), Lambda (_, SpecificCall <@ Update.slice @> _)) ]) ->
-                    let innerElem = traverse field inner
+                    let innerElem = traverse var field inner
                     match innerElem.Value.[0] with // e.g. { $push: { <field>: { $each ... } }
                     | :? BsonDocument as doc ->
                         doc.Add(BsonElement("$slice", BsonInt32(value))) |> ignore
@@ -379,7 +395,7 @@ module Quotations =
 
                         else doc nestedElem
 
-                    let innerElem = traverse field inner
+                    let innerElem = traverse var field inner
                     match innerElem.Value.[0] with // e.g. { $push: { <field>: { $each ... } }
                     | :? BsonDocument as bdoc ->
                         bdoc.Add(BsonElement("$sort", nestedDoc)) |> ignore
@@ -387,16 +403,16 @@ module Quotations =
 
                     | _ -> failwith "expected bson document"
 
-                | Let (_, Int32 (value), Lambda (_, SpecificCall <@ (&&&) @> _)) ->
+                | DeSugared var field <@ (&&&) @> (Int32 (value)) ->
                     BsonElement("$bit", BsonDocument(field, BsonDocument("and", BsonInt32(value))))
 
-                | Let (_, Int32 (value), Lambda (_, SpecificCall <@ (|||) @> _)) ->
+                | DeSugared var field <@ (|||) @> (Int32 (value)) ->
                     BsonElement("$bit", BsonDocument(field, BsonDocument("or", BsonInt32(value))))
 
                 | _ -> failwith "unrecognized expression"
 
             match expr with
-            | DynamicOrPropertyAssignment (var, field, value) when var = v -> traverse field value
+            | DynamicOrPropertyAssignment (var, field, value) when var = v -> traverse var field value
 
             | SpecificCall <@ (|>) @> (_, _, [ SpecificCall <@ (|>) @> (_, _, [ Var (var); Let (_, List (values, _), Lambda (_, SpecificCall <@ Update.rename @> _)) ])
                                                Lambda (_, SpecificCall <@ ignore @> _) ]) when var = v ->
