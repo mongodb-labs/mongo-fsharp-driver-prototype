@@ -307,8 +307,11 @@ module Quotations =
 
         let rec (|DeSugared|_|) v f op expr =
             match expr with
-            | Let (_, value, Lambda (_, SpecificCall <@ %op @> _)) ->
-                Some(value)
+            | Lambda (_, SpecificCall <@ %op @> _) ->
+                Some([])
+
+            | Let (_, value, DeSugared v f op (rest)) ->
+                Some(value :: rest)
 
             | SpecificCall <@ (|>) @> (_, _, [ DynamicOrProperty (var, field)
                                                DeSugared v f op (value) ]) when var = v && field = f->
@@ -317,17 +320,17 @@ module Quotations =
             // infix operator
             | SpecificCall <@ %op @> (_, _, [ DynamicOrProperty (var, field)
                                               value ]) when var = v && field = f ->
-                Some(value)
+                Some([ value ])
 
             | _ -> None
 
         let single expr =
             let rec traverse var field q =
                 match q with
-                | DeSugared var field <@ (+) @> (Int32 (value)) ->
+                | DeSugared var field <@ (+) @> ([ Int32 (value) ]) ->
                     BsonElement("$inc", BsonDocument(field, BsonInt32(value)))
 
-                | DeSugared var field <@ (-) @> (Int32 (value)) ->
+                | DeSugared var field <@ (-) @> ([ Int32 (value) ]) ->
                     BsonElement("$inc", BsonDocument(field, BsonInt32(-value)))
 
                 | Value (value, _) ->
@@ -339,32 +342,32 @@ module Quotations =
                 | NewUnionCase (uci, []) when uci.DeclaringType |> isGenericTypeDefinedFrom<option<_>> ->
                     BsonElement("$unset", BsonDocument(field, BsonInt32(1)))
 
-                | Let (_, Value (value, _), Lambda (_, SpecificCall <@ Update.addToSet @> _)) ->
+                | DeSugared var field <@ Update.addToSet @> ([ Value (value, _) ]) ->
                     BsonElement("$addToSet", BsonDocument(field, BsonValue.Create value))
 
-                | Let (_, List (values, _), Lambda (_, SpecificCall <@ Update.addToSet @> _)) ->
+                | DeSugared var field <@ Update.addToSet @> ([ List (values, _) ]) ->
                     BsonElement("$addToSet", BsonDocument(field, BsonArray(values)))
 
-                | Lambda (_, SpecificCall <@ Update.popleft @> _) ->
+                | DeSugared var field <@ Update.popleft @> ([]) ->
                     BsonElement("$pop", BsonDocument(field, BsonInt32(-1)))
 
-                | Lambda (_, SpecificCall <@ Update.popright @> _) ->
+                | DeSugared var field <@ Update.popright @> ([]) ->
                     BsonElement("$pop", BsonDocument(field, BsonInt32(1)))
 
-                | Let (_, SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]), Lambda (_, SpecificCall <@ Update.pull @> _)) ->
+                | DeSugared var field <@ Update.pull @> ([ SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]) ]) ->
                     let nestedElem = queryParser v q
                     BsonElement("$pull", BsonDocument(field, doc nestedElem))
 
-                | Let (_, List (values, _), Lambda (_, SpecificCall <@ Update.pullAll @> _)) ->
+                | DeSugared var field <@ Update.pullAll @> ([ List (values, _) ]) ->
                     BsonElement("$pullAll", BsonDocument(field, BsonArray(values)))
 
-                | Let (_, Value (value, _), Lambda (_, SpecificCall <@ Update.push @> _)) ->
+                | DeSugared var field <@ Update.push @> ([ Value (value, _) ]) ->
                     BsonElement("$push", BsonDocument(field, BsonValue.Create value))
 
-                | Let (_, List (values, _), Lambda (_, SpecificCall <@ Update.push @> _)) ->
+                | DeSugared var field <@ Update.push @> ([ List (values, _) ]) ->
                     BsonElement("$push", BsonDocument(field, BsonArray(values)))
 
-                | Let (_, op, Let (_, List (values, _), Lambda (_, SpecificCall <@ Update.each @> _))) ->
+                | DeSugared var field <@ Update.each @> ([ op; List (values, _) ]) ->
                     match op with
                     | Lambda (_, Lambda (_, SpecificCall <@ Update.addToSet @> _)) ->
                         BsonElement("$addToSet", BsonDocument(field, BsonDocument("$each", BsonArray(values))))
@@ -374,6 +377,7 @@ module Quotations =
 
                     | _ -> failwith "unrecognized operation with Update.each"
 
+                | SpecificCall <@ (|>) @> (_, _, [ inner; Let (_, Int32(value), Lambda (_, SpecificCall <@ Update.slice @> _)) ])
                 | SpecificCall <@ (>>) @> (_, _, [ inner; Let (_, Int32(value), Lambda (_, SpecificCall <@ Update.slice @> _)) ]) ->
                     let innerElem = traverse var field inner
                     match innerElem.Value.[0] with // e.g. { $push: { <field>: { $each ... } }
@@ -383,6 +387,7 @@ module Quotations =
 
                     | _ -> failwith "expected bson document"
 
+                | SpecificCall <@ (|>) @> (_, _, [ inner; Let (_, SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]), Lambda (_, SpecificCall <@ Update.sort @> _)) ])
                 | SpecificCall <@ (>>) @> (_, _, [ inner; Let (_, SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]), Lambda (_, SpecificCall <@ Update.sort @> _)) ]) ->
                     let nestedElem = queryParser v q
                     let nestedDoc =
@@ -403,10 +408,10 @@ module Quotations =
 
                     | _ -> failwith "expected bson document"
 
-                | DeSugared var field <@ (&&&) @> (Int32 (value)) ->
+                | DeSugared var field <@ (&&&) @> ([ Int32 (value) ]) ->
                     BsonElement("$bit", BsonDocument(field, BsonDocument("and", BsonInt32(value))))
 
-                | DeSugared var field <@ (|||) @> (Int32 (value)) ->
+                | DeSugared var field <@ (|||) @> ([ Int32 (value) ]) ->
                     BsonElement("$bit", BsonDocument(field, BsonDocument("or", BsonInt32(value))))
 
                 | _ -> failwith "unrecognized expression"
