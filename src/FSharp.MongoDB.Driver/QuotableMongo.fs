@@ -239,6 +239,16 @@ module Quotations =
         | _ -> invalidOp "unrecognized pattern"
 
     and private updateParser v q =
+        let rec (|Property|_|) expr =
+            match expr with
+            | PropertyGet (Some(Var (var)), prop, []) ->
+                Some(var, prop.Name)
+
+            | PropertyGet (Some(Property (var, subdoc)), prop, []) ->
+                Some(var, sprintf "%s.%s" subdoc prop.Name)
+
+            | _ -> None
+
         let rec (|Dynamic|_|) expr =
             match expr with
             | SpecificCall <@ (?) @> (_, _, [ Var(var); String(field) ]) ->
@@ -247,6 +257,15 @@ module Quotations =
             | SpecificCall <@ (?) @> (_, _, [ Dynamic(var, subdoc); String(field) ]) ->
                 Some(var, sprintf "%s.%s" subdoc field)
 
+            | Property (var, field) ->
+                Some(var, field)
+
+            | _ -> None
+
+        let (|DynamicOrProperty|_|) expr =
+            match expr with
+            | Dynamic (var, field) -> Some(var, field)
+            | Property (var, field) -> Some(var, field)
             | _ -> None
 
         let (|DynamicAssignment|_|) expr =
@@ -254,9 +273,25 @@ module Quotations =
             | SpecificCall <@ (?<-) @> (_, _, [ Var(var); String(field); value ]) ->
                 Some(var, field, value)
 
-            | SpecificCall <@ (?<-) @> (_, _, [ Dynamic(var, subdoc); String(field); value ]) ->
+            | SpecificCall <@ (?<-) @> (_, _, [ DynamicOrProperty(var, subdoc); String(field); value ]) ->
                 Some(var, sprintf "%s.%s" subdoc field, value)
 
+            | _ -> None
+
+        let (|PropertyAssignment|_|) expr =
+            match expr with
+            | PropertySet (Some(Var (var)), prop, [], value) ->
+                Some(var, prop.Name, value)
+
+            | PropertySet (Some(Property (var, subdoc)), prop, [], value) ->
+                Some(var, sprintf "%s.%s" subdoc prop.Name, value)
+
+            | _ -> None
+
+        let (|DynamicOrPropertyAssignment|_|) expr =
+            match expr with
+            | DynamicAssignment (var, field, value) -> Some(var, field, value)
+            | PropertyAssignment (var, field, value) -> Some(var, field, value)
             | _ -> None
 
         let rec (|List|_|) expr =
@@ -361,7 +396,7 @@ module Quotations =
                 | _ -> failwith "unrecognized expression"
 
             match expr with
-            | DynamicAssignment (var, field, value) when var = v -> traverse field value
+            | DynamicOrPropertyAssignment (var, field, value) when var = v -> traverse field value
 
             | SpecificCall <@ (|>) @> (_, _, [ SpecificCall <@ (|>) @> (_, _, [ Var (var); Let (_, List (values, _), Lambda (_, SpecificCall <@ Update.rename @> _)) ])
                                                Lambda (_, SpecificCall <@ ignore @> _) ]) when var = v ->
