@@ -66,47 +66,18 @@ module Quotations =
 
         let sort (x : 'a) (y : 'b list) : 'b list = invalidOp "not implemented"
 
-    let private doc (elem : BsonElement) = BsonDocument(elem)
+    [<AutoOpen>]
+    module private Helpers =
 
-    let inline private isGenericTypeDefinedFrom<'a> (ty : System.Type) =
-        ty.IsGenericType && ty.GetGenericTypeDefinition() = typedefof<'a>
+        let inline isGenericTypeDefinedFrom<'a> (typ : System.Type) =
+            typ.IsGenericType && typ.GetGenericTypeDefinition() = typedefof<'a>
 
-    let inline private isListUnionCase (uci : UnionCaseInfo) =
-        uci.DeclaringType |> isGenericTypeDefinedFrom<list<_>>
-
-    let rec private queryParser v q =
-        let rec (|Property|_|) expr =
-            match expr with
-            | PropertyGet (Some(Var (var)), prop, []) ->
-                Some(var, prop.Name)
-
-            | PropertyGet (Some(Property (var, subdoc)), prop, []) ->
-                Some(var, sprintf "%s.%s" subdoc prop.Name)
-
-            | _ -> None
-
-        let rec (|Dynamic|_|) expr =
-            match expr with
-            | SpecificCall <@ (?) @> (_, _, [ Var(var); String(field) ]) ->
-                Some(var, field)
-
-            | SpecificCall <@ (?) @> (_, _, [ Dynamic(var, subdoc); String(field) ]) ->
-                Some(var, sprintf "%s.%s" subdoc field)
-
-            | Property (var, field) ->
-                Some(var, field)
-
-            | _ -> None
-
-        let (|DynamicOrProperty|_|) expr =
-            match expr with
-            | Dynamic (var, field) -> Some(var, field)
-            | Property (var, field) -> Some(var, field)
-            | _ -> None
+        let inline isListUnionCase (uci : UnionCaseInfo) =
+            uci.DeclaringType |> isGenericTypeDefinedFrom<list<_>>
 
         let rec (|List|_|) expr =
             match expr with
-            | NewUnionCase (uci, args) when uci.DeclaringType |> isGenericTypeDefinedFrom<list<_>> ->
+            | NewUnionCase (uci, args) when isListUnionCase uci ->
                 match args with
                 | [] -> Some([], typeof<unit>)
                 | [ Value (head, typ); List (tail, _) ] -> Some(head :: tail, typ)
@@ -115,20 +86,87 @@ module Quotations =
 
             | _ -> None
 
-        let (|Comparison|_|) op expr =
+        let rec (|GetProperty|_|) expr =
             match expr with
-            | SpecificCall <@ %op @> (_, _, [ DynamicOrProperty (var, field); Value (value, _) ]) when var = v ->
-                Some(field, value)
+            | PropertyGet (Some(Var (var)), prop, []) ->
+                Some(var, prop.Name)
 
-            | SpecificCall <@ %op @> (_, _, [ DynamicOrProperty (var, field); List (value, _) ]) when var = v ->
-                Some(field, box value)
+            | PropertyGet (Some(GetProperty (var, subdoc)), prop, []) ->
+                Some(var, sprintf "%s.%s" subdoc prop.Name)
 
             | _ -> None
 
+        let rec (|CallDynamic|_|) expr =
+            match expr with
+            | SpecificCall <@ (?) @> (_, _, [ Var (var); String (field) ]) ->
+                Some(var, field)
+
+            | SpecificCall <@ (?) @> (_, _, [ CallDynamic (var, subdoc); String (field) ]) ->
+                Some(var, sprintf "%s.%s" subdoc field)
+
+            | GetProperty (var, field) ->
+                Some(var, field)
+
+            | _ -> None
+
+        let (|GetField|_|) expr =
+            match expr with
+            | CallDynamic (var, field) -> Some(var, field)
+            | GetProperty (var, field) -> Some(var, field)
+            | _ -> None
+
+        let (|CallDynamicAssignment|_|) expr =
+            match expr with
+            | SpecificCall <@ (?<-) @> (_, _, [ Var (var); String (field); value ]) ->
+                Some(var, field, value)
+
+            | SpecificCall <@ (?<-) @> (_, _, [ GetField (var, subdoc); String (field); value ]) ->
+                Some(var, sprintf "%s.%s" subdoc field, value)
+
+            | _ -> None
+
+        let (|SetProperty|_|) expr =
+            match expr with
+            | PropertySet (Some(Var (var)), prop, [], value) ->
+                Some(var, prop.Name, value)
+
+            | PropertySet (Some(GetProperty (var, subdoc)), prop, [], value) ->
+                Some(var, sprintf "%s.%s" subdoc prop.Name, value)
+
+            | _ -> None
+
+        let (|SetField|_|) expr =
+            match expr with
+            | CallDynamicAssignment (var, field, value) -> Some(var, field, value)
+            | SetProperty (var, field, value) -> Some(var, field, value)
+            | _ -> None
+
+        let (|CallForwardPipe|_|) expr =
+            match expr with
+            | SpecificCall <@ (|>) @> (_, _, [ x; f ]) -> Some(x, f)
+            | _ -> None
+
+        let (|InfixOp|_|) op expr =
+            match expr with
+            | SpecificCall <@ %op @> (_, _, [ lhs; rhs ]) -> Some(lhs, rhs)
+            | _ -> None
+
+    let private doc (elem : BsonElement) = BsonDocument(elem)
+
+    let rec private queryParser v q =
+        let (|Comparison|_|) op expr =
+            match expr with
+            | InfixOp op (GetField (var, field), value) when var = v ->
+                match value with
+                | Value (value, _) -> Some(field, value)
+                | List (values, _) -> Some(field, box values)
+                | _ -> None
+            | _ -> None
+
         match q with
-        | SpecificCall <@ (=) @> (_, _, [ SpecificCall <@ (%) @> (_, _, [ DynamicOrProperty (var, field)
-                                                                          Value (divisor, _) ])
-                                          Value (remainder, _) ]) when var = v ->
+        | InfixOp <@ (=) @> (SpecificCall <@ (%) @> (_, _, [ GetField (var, field)
+                                                             Value (divisor, _) ]),
+                             Value (remainder, _)) when var = v ->
             BsonElement(field, BsonDocument("$mod", BsonArray([ divisor; remainder ])))
 
         | Comparison <@ (=) @> (field, value) ->
@@ -149,19 +187,22 @@ module Quotations =
         | Comparison <@ (<=) @> (field, value) ->
             BsonElement(field, BsonDocument("$lte", BsonValue.Create value))
 
-        | SpecificCall <@ (=~) @> (_, _, [ DynamicOrProperty(var, field); String(pcre) ]) when var = v ->
+        | InfixOp <@ (=~) @> (GetField (var, field), String (pcre)) when var = v ->
             let index = pcre.LastIndexOf('/')
             let regex = pcre.Substring(1, index - 1)
             let options = pcre.Substring(index + 1)
             BsonElement(field, BsonDocument([ BsonElement("$regex", BsonString(regex))
                                               BsonElement("$options", BsonString(options)) ]))
 
-        | SpecificCall <@ (|>) @> (_, _, [ Var(var)
-                                           Let (_, String(js), Lambda (_, SpecificCall <@ Query.where @> _)) ]) when var = v ->
-            BsonElement("$where", BsonString(js))
+        | CallForwardPipe (Var (var), expr) when var = v ->
+            match expr with
+            | Let (_, String(js), Lambda (_, SpecificCall <@ Query.where @> _)) ->
+                BsonElement("$where", BsonString(js))
 
-        | SpecificCall <@ (|>) @> (_, _, [ DynamicOrProperty(var, field); subexpr ]) when var = v ->
-            match subexpr with
+            | _ -> failwith "unrecognized expression"
+
+        | CallForwardPipe (GetField (var, field), expr) when var = v ->
+            match expr with
             | Let (_, List (value, _), Lambda (_, SpecificCall <@ Query.all @> _)) ->
                 BsonElement(field, BsonDocument("$all", BsonValue.Create value))
 
@@ -178,9 +219,8 @@ module Quotations =
                 BsonElement(field, BsonDocument("$exists", BsonBoolean(false)))
 
             | Let (_, Value(value, _), Lambda (_, SpecificCall <@ Query.type' @> _)) ->
-                match value with
-                | :? BsonType as typ -> BsonElement(field, BsonDocument("$type", BsonValue.Create typ))
-                | _ -> failwith "expected bson type"
+                let typ = value :?> BsonType
+                BsonElement(field, BsonDocument("$type", BsonValue.Create typ))
 
             | Let (_, SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]), Lambda (_, SpecificCall <@ Query.elemMatch @> _)) ->
                 let nestedElem = queryParser v q
@@ -201,14 +241,14 @@ module Quotations =
 
             | _ -> failwith "unrecognized expression"
 
-        | SpecificCall <@ Query.nor @> (_, _, [ List (subexprs, _) ]) ->
-            let subElems = subexprs |> List.map (fun q -> queryParser v (unbox q))
-            BsonElement("$nor", BsonArray(List.map (fun elem -> doc elem) subElems))
+        | SpecificCall <@ Query.nor @> (_, _, [ List (exprs, _) ]) ->
+            let elems = exprs |> List.map (fun q -> queryParser v (unbox q))
+            BsonElement("$nor", BsonArray(elems |> List.map doc))
 
-        | SpecificCall <@ not @> (_, _, [ inner ]) ->
-            let innerElem = queryParser v inner
-            innerElem.Value <- doc <| BsonElement("$not", innerElem.Value)
-            innerElem
+        | SpecificCall <@ not @> (_, _, [ expr ]) ->
+            let elem = queryParser v expr
+            elem.Value <- BsonDocument("$not", elem.Value)
+            elem
 
         | AndAlso (lhs, rhs) ->
             let lhsElem = queryParser v lhs
@@ -239,72 +279,6 @@ module Quotations =
         | _ -> invalidOp "unrecognized pattern"
 
     and private updateParser v q =
-        let rec (|Property|_|) expr =
-            match expr with
-            | PropertyGet (Some(Var (var)), prop, []) ->
-                Some(var, prop.Name)
-
-            | PropertyGet (Some(Property (var, subdoc)), prop, []) ->
-                Some(var, sprintf "%s.%s" subdoc prop.Name)
-
-            | _ -> None
-
-        let rec (|Dynamic|_|) expr =
-            match expr with
-            | SpecificCall <@ (?) @> (_, _, [ Var(var); String(field) ]) ->
-                Some(var, field)
-
-            | SpecificCall <@ (?) @> (_, _, [ Dynamic(var, subdoc); String(field) ]) ->
-                Some(var, sprintf "%s.%s" subdoc field)
-
-            | Property (var, field) ->
-                Some(var, field)
-
-            | _ -> None
-
-        let (|DynamicOrProperty|_|) expr =
-            match expr with
-            | Dynamic (var, field) -> Some(var, field)
-            | Property (var, field) -> Some(var, field)
-            | _ -> None
-
-        let (|DynamicAssignment|_|) expr =
-            match expr with
-            | SpecificCall <@ (?<-) @> (_, _, [ Var(var); String(field); value ]) ->
-                Some(var, field, value)
-
-            | SpecificCall <@ (?<-) @> (_, _, [ DynamicOrProperty(var, subdoc); String(field); value ]) ->
-                Some(var, sprintf "%s.%s" subdoc field, value)
-
-            | _ -> None
-
-        let (|PropertyAssignment|_|) expr =
-            match expr with
-            | PropertySet (Some(Var (var)), prop, [], value) ->
-                Some(var, prop.Name, value)
-
-            | PropertySet (Some(Property (var, subdoc)), prop, [], value) ->
-                Some(var, sprintf "%s.%s" subdoc prop.Name, value)
-
-            | _ -> None
-
-        let (|DynamicOrPropertyAssignment|_|) expr =
-            match expr with
-            | DynamicAssignment (var, field, value) -> Some(var, field, value)
-            | PropertyAssignment (var, field, value) -> Some(var, field, value)
-            | _ -> None
-
-        let rec (|List|_|) expr =
-            match expr with
-            | NewUnionCase (uci, args) when uci.DeclaringType |> isGenericTypeDefinedFrom<list<_>> ->
-                match args with
-                | [] -> Some([], typeof<unit>)
-                | [ Value (head, typ); List (tail, _) ] -> Some(head :: tail, typ)
-                | [ head; List (tail, _) ] -> Some(box head :: tail, typeof<Expr>)
-                | _ -> failwith "unexpected list union case"
-
-            | _ -> None
-
         let rec (|DeSugared|_|) v f op expr =
             match expr with
             | Lambda (_, SpecificCall <@ %op @> _) ->
@@ -313,12 +287,12 @@ module Quotations =
             | Let (_, value, DeSugared v f op (rest)) ->
                 Some(value :: rest)
 
-            | SpecificCall <@ (|>) @> (_, _, [ DynamicOrProperty (var, field)
+            | SpecificCall <@ (|>) @> (_, _, [ GetField (var, field)
                                                DeSugared v f op (value) ]) when var = v && field = f->
                 Some(value)
 
             // infix operator
-            | SpecificCall <@ %op @> (_, _, [ DynamicOrProperty (var, field)
+            | SpecificCall <@ %op @> (_, _, [ GetField (var, field)
                                               value ]) when var = v && field = f ->
                 Some([ value ])
 
@@ -417,7 +391,7 @@ module Quotations =
                 | _ -> failwith "unrecognized expression"
 
             match expr with
-            | DynamicOrPropertyAssignment (var, field, value) when var = v -> traverse var field value
+            | SetField (var, field, value) when var = v -> traverse var field value
 
             | SpecificCall <@ (|>) @> (_, _, [ SpecificCall <@ (|>) @> (_, _, [ Var (var); Let (_, List (values, _), Lambda (_, SpecificCall <@ Update.rename @> _)) ])
                                                Lambda (_, SpecificCall <@ ignore @> _) ]) when var = v ->
