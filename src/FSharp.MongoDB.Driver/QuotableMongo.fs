@@ -278,7 +278,7 @@ module Quotations =
 
         | _ -> invalidOp "unrecognized pattern"
 
-    and private updateParser v q =
+    and private updateParser v f q =
         let rec (|DeSugared|_|) v f op expr =
             match expr with
             | Lambda (_, SpecificCall <@ %op @> _) ->
@@ -298,117 +298,98 @@ module Quotations =
 
             | _ -> None
 
-        let single expr =
-            let rec traverse var field q =
-                match q with
-                | DeSugared var field <@ (+) @> ([ Int32 (value) ]) ->
-                    BsonElement("$inc", BsonDocument(field, BsonInt32(value)))
-
-                | DeSugared var field <@ (-) @> ([ Int32 (value) ]) ->
-                    BsonElement("$inc", BsonDocument(field, BsonInt32(-value)))
-
-                | Value (value, _) ->
-                    BsonElement("$set", BsonDocument(field, BsonValue.Create value))
-
-                | List (values, _) ->
-                    BsonElement("$set", BsonDocument(field, BsonArray(values)))
-
-                | NewUnionCase (uci, []) when uci.DeclaringType |> isGenericTypeDefinedFrom<option<_>> ->
-                    BsonElement("$unset", BsonDocument(field, BsonInt32(1)))
-
-                | DeSugared var field <@ Update.addToSet @> ([ Value (value, _) ]) ->
-                    BsonElement("$addToSet", BsonDocument(field, BsonValue.Create value))
-
-                | DeSugared var field <@ Update.addToSet @> ([ List (values, _) ]) ->
-                    BsonElement("$addToSet", BsonDocument(field, BsonArray(values)))
-
-                | DeSugared var field <@ Update.popleft @> ([]) ->
-                    BsonElement("$pop", BsonDocument(field, BsonInt32(-1)))
-
-                | DeSugared var field <@ Update.popright @> ([]) ->
-                    BsonElement("$pop", BsonDocument(field, BsonInt32(1)))
-
-                | DeSugared var field <@ Update.pull @> ([ SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]) ]) ->
-                    let nestedElem = queryParser v q
-                    BsonElement("$pull", BsonDocument(field, doc nestedElem))
-
-                | DeSugared var field <@ Update.pullAll @> ([ List (values, _) ]) ->
-                    BsonElement("$pullAll", BsonDocument(field, BsonArray(values)))
-
-                | DeSugared var field <@ Update.push @> ([ Value (value, _) ]) ->
-                    BsonElement("$push", BsonDocument(field, BsonValue.Create value))
-
-                | DeSugared var field <@ Update.push @> ([ List (values, _) ]) ->
-                    BsonElement("$push", BsonDocument(field, BsonArray(values)))
-
-                | DeSugared var field <@ Update.each @> ([ op; List (values, _) ]) ->
-                    match op with
-                    | Lambda (_, Lambda (_, SpecificCall <@ Update.addToSet @> _)) ->
-                        BsonElement("$addToSet", BsonDocument(field, BsonDocument("$each", BsonArray(values))))
-
-                    | Lambda (_, Lambda (_, SpecificCall <@ Update.push @> _)) ->
-                        BsonElement("$push", BsonDocument(field, BsonDocument("$each", BsonArray(values))))
-
-                    | _ -> failwith "unrecognized operation with Update.each"
-
-                | SpecificCall <@ (|>) @> (_, _, [ inner; Let (_, Int32(value), Lambda (_, SpecificCall <@ Update.slice @> _)) ])
-                | SpecificCall <@ (>>) @> (_, _, [ inner; Let (_, Int32(value), Lambda (_, SpecificCall <@ Update.slice @> _)) ]) ->
-                    let innerElem = traverse var field inner
-                    match innerElem.Value.[0] with // e.g. { $push: { <field>: { $each ... } }
-                    | :? BsonDocument as doc ->
-                        doc.Add(BsonElement("$slice", BsonInt32(value))) |> ignore
-                        innerElem
-
-                    | _ -> failwith "expected bson document"
-
-                | SpecificCall <@ (|>) @> (_, _, [ inner; Let (_, SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]), Lambda (_, SpecificCall <@ Update.sort @> _)) ])
-                | SpecificCall <@ (>>) @> (_, _, [ inner; Let (_, SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]), Lambda (_, SpecificCall <@ Update.sort @> _)) ]) ->
-                    let nestedElem = queryParser v q
-                    let nestedDoc =
-                        if nestedElem.Name = "$and" then
-                            match nestedElem.Value with
-                            | :? BsonArray as arr ->
-                                BsonDocument(Seq.map (fun (doc : BsonDocument) -> doc.GetElement(0)) (arr.Values |> Seq.cast))
-
-                            | _ -> failwith "expected bson array"
-
-                        else doc nestedElem
-
-                    let innerElem = traverse var field inner
-                    match innerElem.Value.[0] with // e.g. { $push: { <field>: { $each ... } }
-                    | :? BsonDocument as bdoc ->
-                        bdoc.Add(BsonElement("$sort", nestedDoc)) |> ignore
-                        innerElem
-
-                    | _ -> failwith "expected bson document"
-
-                | DeSugared var field <@ (&&&) @> ([ Int32 (value) ]) ->
-                    BsonElement("$bit", BsonDocument(field, BsonDocument("and", BsonInt32(value))))
-
-                | DeSugared var field <@ (|||) @> ([ Int32 (value) ]) ->
-                    BsonElement("$bit", BsonDocument(field, BsonDocument("or", BsonInt32(value))))
-
-                | _ -> failwith "unrecognized expression"
-
-            match expr with
-            | SetField (var, field, value) when var = v -> traverse var field value
-
-            | SpecificCall <@ (|>) @> (_, _, [ SpecificCall <@ (|>) @> (_, _, [ Var (var); Let (_, List (values, _), Lambda (_, SpecificCall <@ Update.rename @> _)) ])
-                                               Lambda (_, SpecificCall <@ ignore @> _) ]) when var = v ->
-                let zipTransform expr =
-                    match expr with
-                    | NewTuple ([ String (left); String (right) ]) -> BsonElement(left, BsonString(right))
-                    | _ -> failwith "expected (string * string) tuple"
-
-                BsonElement("$rename", BsonDocument(List.map (unbox >> zipTransform) values))
-
-            | _ -> failwith "unrecognized pattern"
+        let var = v
+        let field = f
 
         match q with
-        | List (subexprs, _) ->
-            BsonDocument(List.map (unbox >> single) subexprs)
+        | DeSugared var field <@ (+) @> ([ Int32 (value) ]) ->
+            BsonElement("$inc", BsonDocument(field, BsonInt32(value)))
 
-        | _ -> failwith "expected unit list"
+        | DeSugared var field <@ (-) @> ([ Int32 (value) ]) ->
+            BsonElement("$inc", BsonDocument(field, BsonInt32(-value)))
+
+        | Value (value, _) ->
+            BsonElement("$set", BsonDocument(field, BsonValue.Create value))
+
+        | List (values, _) ->
+            BsonElement("$set", BsonDocument(field, BsonArray(values)))
+
+        | NewUnionCase (uci, []) when uci.DeclaringType |> isGenericTypeDefinedFrom<option<_>> ->
+            BsonElement("$unset", BsonDocument(field, BsonInt32(1)))
+
+        | DeSugared var field <@ Update.addToSet @> ([ Value (value, _) ]) ->
+            BsonElement("$addToSet", BsonDocument(field, BsonValue.Create value))
+
+        | DeSugared var field <@ Update.addToSet @> ([ List (values, _) ]) ->
+            BsonElement("$addToSet", BsonDocument(field, BsonArray(values)))
+
+        | DeSugared var field <@ Update.popleft @> ([]) ->
+            BsonElement("$pop", BsonDocument(field, BsonInt32(-1)))
+
+        | DeSugared var field <@ Update.popright @> ([]) ->
+            BsonElement("$pop", BsonDocument(field, BsonInt32(1)))
+
+        | DeSugared var field <@ Update.pull @> ([ SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]) ]) ->
+            let nestedElem = queryParser v q
+            BsonElement("$pull", BsonDocument(field, doc nestedElem))
+
+        | DeSugared var field <@ Update.pullAll @> ([ List (values, _) ]) ->
+            BsonElement("$pullAll", BsonDocument(field, BsonArray(values)))
+
+        | DeSugared var field <@ Update.push @> ([ Value (value, _) ]) ->
+            BsonElement("$push", BsonDocument(field, BsonValue.Create value))
+
+        | DeSugared var field <@ Update.push @> ([ List (values, _) ]) ->
+            BsonElement("$push", BsonDocument(field, BsonArray(values)))
+
+        | DeSugared var field <@ Update.each @> ([ op; List (values, _) ]) ->
+            match op with
+            | Lambda (_, Lambda (_, SpecificCall <@ Update.addToSet @> _)) ->
+                BsonElement("$addToSet", BsonDocument(field, BsonDocument("$each", BsonArray(values))))
+
+            | Lambda (_, Lambda (_, SpecificCall <@ Update.push @> _)) ->
+                BsonElement("$push", BsonDocument(field, BsonDocument("$each", BsonArray(values))))
+
+            | _ -> failwith "unrecognized operation with Update.each"
+
+        | SpecificCall <@ (|>) @> (_, _, [ inner; Let (_, Int32(value), Lambda (_, SpecificCall <@ Update.slice @> _)) ])
+        | SpecificCall <@ (>>) @> (_, _, [ inner; Let (_, Int32(value), Lambda (_, SpecificCall <@ Update.slice @> _)) ]) ->
+            let innerElem = updateParser var field inner
+            match innerElem.Value.[0] with // e.g. { $push: { <field>: { $each ... } }
+            | :? BsonDocument as doc ->
+                doc.Add(BsonElement("$slice", BsonInt32(value))) |> ignore
+                innerElem
+
+            | _ -> failwith "expected bson document"
+
+        | SpecificCall <@ (|>) @> (_, _, [ inner; Let (_, SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]), Lambda (_, SpecificCall <@ Update.sort @> _)) ])
+        | SpecificCall <@ (>>) @> (_, _, [ inner; Let (_, SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]), Lambda (_, SpecificCall <@ Update.sort @> _)) ]) ->
+            let nestedElem = queryParser v q
+            let nestedDoc =
+                if nestedElem.Name = "$and" then
+                    match nestedElem.Value with
+                    | :? BsonArray as arr ->
+                        BsonDocument(Seq.map (fun (doc : BsonDocument) -> doc.GetElement(0)) (arr.Values |> Seq.cast))
+
+                    | _ -> failwith "expected bson array"
+
+                else doc nestedElem
+
+            let innerElem = updateParser var field inner
+            match innerElem.Value.[0] with // e.g. { $push: { <field>: { $each ... } }
+            | :? BsonDocument as bdoc ->
+                bdoc.Add(BsonElement("$sort", nestedDoc)) |> ignore
+                innerElem
+
+            | _ -> failwith "expected bson document"
+
+        | DeSugared var field <@ (&&&) @> ([ Int32 (value) ]) ->
+            BsonElement("$bit", BsonDocument(field, BsonDocument("and", BsonInt32(value))))
+
+        | DeSugared var field <@ (|||) @> ([ Int32 (value) ]) ->
+            BsonElement("$bit", BsonDocument(field, BsonDocument("or", BsonInt32(value))))
+
+        | _ -> failwith "unrecognized expression"
 
     and bson (q : Expr<'a -> 'b>) =
         match box q with
@@ -419,7 +400,51 @@ module Quotations =
 
         | :? Expr<'a -> unit list> as q ->
             match q with
-            | ExprShape.ShapeLambda (v, body) -> updateParser v body
+            | ExprShape.ShapeLambda (v, List (exprs, _)) ->
+
+                let parse expr =
+                    match expr with
+                    | SetField (var, field, value) when var = v -> updateParser var field value
+
+                    | SpecificCall <@ (|>) @> (_, _, [ SpecificCall <@ (|>) @> (_, _, [ Var (var); Let (_, List (values, _), Lambda (_, SpecificCall <@ Update.rename @> _)) ])
+                                                       Lambda (_, SpecificCall <@ ignore @> _) ]) when var = v ->
+                        let zipTransform expr =
+                            match expr with
+                            | NewTuple ([ String (left); String (right) ]) -> BsonElement(left, BsonString(right))
+                            | _ -> failwith "expected (string * string) tuple"
+
+                        BsonElement("$rename", BsonDocument(List.map (unbox >> zipTransform) values))
+
+                    | _ -> failwith "unrecognized pattern"
+
+                BsonDocument(exprs |> List.map (unbox >> parse))
+
+            | _ -> failwith "expected lambda expression"
+
+        | :? Expr<'a -> 'a> as q ->
+            match q with
+            | ExprShape.ShapeLambda (v, body) ->
+                let rec (|NestedLet|_|) expr =
+                    match expr with
+                    | NewRecord (typ, PropertyGet _ :: _) -> None
+
+                    | NewRecord (typ, value :: _) ->
+                        let field = FSharpType.GetRecordFields(typ).[0]
+                        Some([ field.Name ], [ value ])
+
+                    | Let (field, value, NestedLet (restFields, restValues)) -> Some(field.Name :: restFields, value :: restValues)
+
+                    // TODO: verify the field (index) of the record type
+                    | Let (field, value, _) -> Some([ field.Name ], [ value ])
+                    | _ -> None
+
+                match body with
+                | NestedLet (fields, values) ->
+                    let values = values |> List.filter (fun x -> match x with | PropertyGet _ -> false | _ -> true)
+                    BsonDocument(List.map2 (updateParser v) fields values)
+
+                | _ -> failwith "expected nested let or new record expression"
+
             | _ -> failwith "expected lambda expression"
 
         | _ -> failwith "unrecognized expression"
