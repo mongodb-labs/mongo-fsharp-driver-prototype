@@ -53,6 +53,9 @@
     <Compile Include="Properties/AssemblyInfo.fs">
       <Link>Properties/AssemblyInfo.fs</Link>
     </Compile>
+    <Compile Include="Serialization/FSharpTypeSerializer.fs">
+      <Link>Serialization/FSharpTypeSerializer.fs</Link>
+    </Compile>
     <Compile Include="MongoOperationSettings.fs">
       <Link>MongoOperationSettings.fs</Link>
     </Compile>
@@ -73,6 +76,9 @@
     </Compile>
     <Compile Include="MongoClient.fs">
       <Link>MongoClient.fs</Link>
+    </Compile>
+    <Compile Include="QuotableMongo.fs">
+      <Link>QuotableMongo.fs</Link>
     </Compile>
   </ItemGroup>
   <PropertyGroup>

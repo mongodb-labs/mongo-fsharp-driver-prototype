@@ -61,6 +61,12 @@
     <Compile Include="MongoBackboneTests.fs">
       <Link>MongoBackboneTests.fs</Link>
     </Compile>
+    <Compile Include="QuotableMongoTests.fs">
+      <Link>QuotableMongoTests.fs</Link>
+    </Compile>
+    <Compile Include="TypedQuotableMongoTests.fs">
+      <Link>TypedQuotableMongoTests.fs</Link>
+    </Compile>
     <None Include="packages.config" />
     <None Include="app.config" />
   </ItemGroup>
