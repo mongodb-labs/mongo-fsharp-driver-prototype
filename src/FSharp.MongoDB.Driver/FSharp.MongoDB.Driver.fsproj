@@ -53,8 +53,8 @@
     <Compile Include="Properties/AssemblyInfo.fs">
       <Link>Properties/AssemblyInfo.fs</Link>
     </Compile>
-    <Compile Include="Serialization/FSharpTypeSerializer.fs">
-      <Link>Serialization/FSharpTypeSerializer.fs</Link>
+    <Compile Include="Serialization/FSharpValueSerializer.fs">
+      <Link>Serialization/FSharpValueSerializer.fs</Link>
     </Compile>
     <Compile Include="MongoOperationSettings.fs">
       <Link>MongoOperationSettings.fs</Link>

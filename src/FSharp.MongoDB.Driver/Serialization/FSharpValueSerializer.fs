@@ -9,7 +9,7 @@ open MongoDB.Bson.Serialization.Serializers
 module Serialization =
 
     [<RequireQualifiedAccess>]
-    module FSharpTypeSerializer =
+    module FSharpValueSerializer =
 
         [<AutoOpen>]
         module private Bson =
