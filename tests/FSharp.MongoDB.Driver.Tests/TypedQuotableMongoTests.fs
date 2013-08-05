@@ -513,7 +513,9 @@ module TypedQuotableMongo =
                                                                                   |> Update.sort (bson <@ fun (y : BsonDocument) -> y?width = 1 @>)
                                                                                   |> Update.slice -5 ] @> |> bson @>
 
-                let expected = <@ BsonDocument("$push", BsonDocument("sizes", BsonDocument([ BsonElement("$each", BsonArray([ size1; size2; size3 ]))
+                let doc (x : Mutable.Size) = (box x).ToBsonDocument(x.GetType())
+
+                let expected = <@ BsonDocument("$push", BsonDocument("sizes", BsonDocument([ BsonElement("$each", BsonArray([ size1; size2; size3 ] |> List.map doc))
                                                                                              BsonElement("$sort", BsonDocument("width", BsonInt32(1)))
                                                                                              BsonElement("$slice", BsonInt32(-5)) ]))) @>
 
@@ -529,7 +531,9 @@ module TypedQuotableMongo =
                                                                                         |> Update.sort (bson <@ fun (y : BsonDocument) -> y?width = 1 @>)
                                                                                         |> Update.slice -5 } @> |> bson @>
 
-                let expected = <@ BsonDocument("$push", BsonDocument("sizes", BsonDocument([ BsonElement("$each", BsonArray([ size1; size2; size3 ]))
+                let doc (x : Immutable.Size)  = (box x).ToBsonDocument(x.GetType())
+
+                let expected = <@ BsonDocument("$push", BsonDocument("sizes", BsonDocument([ BsonElement("$each", BsonArray([ size1; size2; size3 ] |> List.map doc))
                                                                                              BsonElement("$sort", BsonDocument("width", BsonInt32(1)))
                                                                                              BsonElement("$slice", BsonInt32(-5)) ]))) @>
 

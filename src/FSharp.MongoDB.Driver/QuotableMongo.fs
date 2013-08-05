@@ -348,7 +348,14 @@ module Quotations =
                 BsonElement("$addToSet", BsonDocument(field, BsonDocument("$each", BsonArray(values))))
 
             | Lambda (_, Lambda (_, SpecificCall <@ Update.push @> _)) ->
-                BsonElement("$push", BsonDocument(field, BsonDocument("$each", BsonArray(values))))
+                let array =
+                    try
+                        BsonArray(values |> List.map BsonValue.Create)
+                    with
+                       | :? System.ArgumentException ->
+                            BsonArray(values |> List.map (fun x -> x.ToBsonDocument(x.GetType()) :> BsonValue))
+
+                BsonElement("$push", BsonDocument(field, BsonDocument("$each", array)))
 
             | _ -> failwith "unrecognized operation with Update.each"
 
