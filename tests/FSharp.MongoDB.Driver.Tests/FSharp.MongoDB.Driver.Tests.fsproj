@@ -58,6 +58,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="FSharpValueSerializerTests.fs">
+      <Link>FSharpValueSerializerTests.fs</Link>
+    </Compile>
     <Compile Include="MongoBackboneTests.fs">
       <Link>MongoBackboneTests.fs</Link>
     </Compile>
