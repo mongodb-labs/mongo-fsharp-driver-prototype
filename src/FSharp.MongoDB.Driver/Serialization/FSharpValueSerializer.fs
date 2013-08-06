@@ -14,9 +14,7 @@ module Serialization =
         type RecordTypeSerializer(typ : System.Type) =
             inherit BsonBaseSerializer()
 
-            let fields =
-                FSharpType.GetRecordFields(typ)
-                |> Seq.map (fun (x : System.Reflection.PropertyInfo) -> x.Name)
+            let fields = FSharpType.GetRecordFields(typ)
 
             override __.Serialize(writer, nominalType, value, options) =
                 let values = FSharpValue.GetRecordFields(value)
@@ -26,12 +24,24 @@ module Serialization =
                 Seq.iter2 (fun field value ->
                     writer.WriteName(field)
                     BsonSerializer.Serialize(writer, value)
-                ) fields values
+                ) (fields |> Seq.map (fun (x : System.Reflection.PropertyInfo) -> x.Name)) values
 
                 writer.WriteEndDocument()
 
             override __.Deserialize(reader, nominalType, actualType, options) =
-                invalidOp "not implemented"
+
+                reader.ReadStartDocument()
+
+                let values =
+                    fields
+                    |> Seq.map (fun field ->
+                        reader.ReadName(field.Name)
+                        BsonSerializer.Deserialize(reader, field.PropertyType))
+                    |> Seq.toArray
+
+                reader.ReadEndDocument()
+
+                FSharpValue.MakeRecord(typ, values)
 
         type FSharpTypeSerializationProvider() =
 
