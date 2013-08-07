@@ -54,8 +54,14 @@
     <Compile Include="Serialization/Conventions/OptionTypeConvention.fs">
       <Link>Serialization/Conventions/OptionTypeConvention.fs</Link>
     </Compile>
+    <Compile Include="Serialization/Serializers/OptionTypeSerializer.fs">
+      <Link>Serialization/Serializers/OptionTypeSerializer.fs</Link>
+    </Compile>
     <Compile Include="Serialization/FSharpTypeConventions.fs">
       <Link>Serialization/FSharpTypeConventions.fs</Link>
+    </Compile>
+    <Compile Include="Serialization/FSharpValueSerializers.fs">
+      <Link>Serialization/FSharpValueSerializers.fs</Link>
     </Compile>
   </ItemGroup>
   <PropertyGroup>
