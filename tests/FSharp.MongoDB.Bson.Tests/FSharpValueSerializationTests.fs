@@ -159,3 +159,118 @@ module FSharpValueSerialization =
             let expected = <@ { bool = Some true; int = Some 1; string = Some "1.0"; float = Some 1.0 } @>
 
             test <@ %result = %expected @>
+
+    [<TestFixture>]
+    module DiscriminatedUnion =
+
+        type Primitive =
+           | Bool of bool
+           | Int of int
+           | String of string
+           | Float of float
+
+        [<Test>]
+        let ``test serialize primitives discriminated union 0``() =
+            let boolValue =  Bool(false)
+            let intValue = Int(0)
+            let stringValue = String("0.0")
+            let floatValue = Float(0.0)
+
+            let boolResult = <@ serialize boolValue @>
+            let boolExpected = <@ BsonDocument([ BsonElement("_t", BsonString("Bool"))
+                                                 BsonElement("Item", BsonBoolean(false)) ]) @>
+
+            let intResult = <@ serialize intValue @>
+            let intExpected = <@ BsonDocument([ BsonElement("_t", BsonString("Int"))
+                                                BsonElement("Item", BsonInt32(0)) ]) @>
+
+            let stringResult = <@ serialize stringValue @>
+            let stringExpected = <@ BsonDocument([ BsonElement("_t", BsonString("String"))
+                                                   BsonElement("Item", BsonString("0.0")) ]) @>
+
+            let floatResult = <@ serialize floatValue @>
+            let floatExpected = <@ BsonDocument([ BsonElement("_t", BsonString("Float"))
+                                                  BsonElement("Item", BsonDouble(0.0)) ]) @>
+
+            test <@ %boolResult = %boolExpected @>
+
+        [<Test>]
+        let ``test deserialize primitives discriminated union 0``() =
+            let boolDoc = BsonDocument([ BsonElement("_t", BsonString("Bool"))
+                                         BsonElement("Item", BsonBoolean(false)) ])
+
+            let intDoc = BsonDocument([ BsonElement("_t", BsonString("Int"))
+                                        BsonElement("Item", BsonInt32(0)) ])
+
+            let stringDoc = BsonDocument([ BsonElement("_t", BsonString("String"))
+                                           BsonElement("Item", BsonString("0.0")) ])
+
+            let floatDoc = BsonDocument([ BsonElement("_t", BsonString("Float"))
+                                          BsonElement("Item", BsonDouble(0.0)) ])
+
+            let boolResult = <@ deserialize boolDoc typeof<Primitive> @>
+            let boolExpected = <@ Bool(false) @>
+
+            let intResult =  <@ deserialize intDoc typeof<Primitive> @>
+            let intExpected = <@ Int(0) @>
+
+            let stringResult =  <@ deserialize stringDoc typeof<Primitive> @>
+            let stringExpected = <@ String("0.0") @>
+
+            let floatResult =  <@ deserialize floatDoc typeof<Primitive> @>
+            let floatExpected = <@ Float(0.0) @>
+
+            test <@ %boolResult = %boolExpected @>
+
+        [<Test>]
+        let ``test serialize primitives discriminated union 1``() =
+            let boolValue =  Bool(true)
+            let intValue = Int(1)
+            let stringValue = String("1.0")
+            let floatValue = Float(1.0)
+
+            let boolResult = <@ serialize boolValue @>
+            let boolExpected = <@ BsonDocument([ BsonElement("_t", BsonString("Bool"))
+                                                 BsonElement("Item", BsonBoolean(true)) ]) @>
+
+            let intResult = <@ serialize intValue @>
+            let intExpected = <@ BsonDocument([ BsonElement("_t", BsonString("Int"))
+                                                BsonElement("Item", BsonInt32(1)) ]) @>
+
+            let stringResult = <@ serialize stringValue @>
+            let stringExpected = <@ BsonDocument([ BsonElement("_t", BsonString("String"))
+                                                   BsonElement("Item", BsonString("1.0")) ]) @>
+
+            let floatResult = <@ serialize floatValue @>
+            let floatExpected = <@ BsonDocument([ BsonElement("_t", BsonString("Float"))
+                                                  BsonElement("Item", BsonDouble(1.0)) ]) @>
+
+            test <@ %boolResult = %boolExpected @>
+
+        [<Test>]
+        let ``test deserialize primitives discriminated union 1``() =
+            let boolDoc = BsonDocument([ BsonElement("_t", BsonString("Bool"))
+                                         BsonElement("Item", BsonBoolean(true)) ])
+
+            let intDoc = BsonDocument([ BsonElement("_t", BsonString("Int"))
+                                        BsonElement("Item", BsonInt32(1)) ])
+
+            let stringDoc = BsonDocument([ BsonElement("_t", BsonString("String"))
+                                           BsonElement("Item", BsonString("1.0")) ])
+
+            let floatDoc = BsonDocument([ BsonElement("_t", BsonString("Float"))
+                                          BsonElement("Item", BsonDouble(1.0)) ])
+
+            let boolResult = <@ deserialize boolDoc typeof<Primitive> @>
+            let boolExpected = <@ Bool(true) @>
+
+            let intResult =  <@ deserialize intDoc typeof<Primitive> @>
+            let intExpected = <@ Int(1) @>
+
+            let stringResult =  <@ deserialize stringDoc typeof<Primitive> @>
+            let stringExpected = <@ String("1.0") @>
+
+            let floatResult =  <@ deserialize floatDoc typeof<Primitive> @>
+            let floatExpected = <@ Float(1.0) @>
+
+            test <@ %boolResult = %boolExpected @>
