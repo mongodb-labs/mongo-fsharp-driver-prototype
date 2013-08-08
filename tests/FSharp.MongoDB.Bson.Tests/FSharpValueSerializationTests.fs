@@ -1,4 +1,4 @@
-namespace FSharp.MongoDB.Driver.Tests
+namespace FSharp.MongoDB.Bson.Tests
 
 open MongoDB.Bson
 open MongoDB.Bson.IO
@@ -274,3 +274,96 @@ module FSharpValueSerialization =
             let floatExpected = <@ Float(1.0) @>
 
             test <@ %boolResult = %boolExpected @>
+
+        [<TestFixture>]
+        module Arity =
+
+            type Number =
+               | Zero
+               | One of int
+               | Two of int * int
+               | Three of int * int * int
+
+            [<Test>]
+            let ``test serialize discriminated union case with arity 0``() =
+                let value = Zero
+
+                let result = <@ serialize value @>
+                let expected = <@ BsonDocument([ BsonElement("_t", BsonString("Zero")) ]) @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test deserialize discriminated union case with arity 0``() =
+                let doc = BsonDocument([ BsonElement("_t", BsonString("Zero")) ])
+
+                let result = <@ deserialize doc typeof<Number> @>
+                let expected = <@ Zero @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test serialize discriminated union case with arity 1``() =
+                let value = One 1
+
+                let result = <@ serialize value @>
+                let expected = <@ BsonDocument([ BsonElement("_t", BsonString("One"))
+                                                 BsonElement("Item", BsonInt32(1)) ]) @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test deserialize discriminated union case with arity 1``() =
+                let doc = BsonDocument([ BsonElement("_t", BsonString("One"))
+                                         BsonElement("Item", BsonInt32(1)) ])
+
+                let result = <@ deserialize doc typeof<Number> @>
+                let expected = <@ One 1 @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test serialize discriminated union case with arity 2``() =
+                let value = Two (1, 2)
+
+                let result = <@ serialize value @>
+                let expected = <@ BsonDocument([ BsonElement("_t", BsonString("Two"))
+                                                 BsonElement("Item1", BsonInt32(1))
+                                                 BsonElement("Item2", BsonInt32(2)) ]) @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test deserialize discriminated union case with arity 2``() =
+                let doc = BsonDocument([ BsonElement("_t", BsonString("Two"))
+                                         BsonElement("Item1", BsonInt32(1))
+                                         BsonElement("Item2", BsonInt32(2)) ])
+
+                let result = <@ deserialize doc typeof<Number> @>
+                let expected = <@ Two (1, 2) @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test serialize discriminated union case with arity 3``() =
+                let value = Three (1, 2, 3)
+
+                let result = <@ serialize value @>
+                let expected = <@ BsonDocument([ BsonElement("_t", BsonString("Three"))
+                                                 BsonElement("Item1", BsonInt32(1))
+                                                 BsonElement("Item2", BsonInt32(2))
+                                                 BsonElement("Item3", BsonInt32(3)) ]) @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test deserialize discriminated union case with arity 3``() =
+                let doc = BsonDocument([ BsonElement("_t", BsonString("Three"))
+                                         BsonElement("Item1", BsonInt32(1))
+                                         BsonElement("Item2", BsonInt32(2))
+                                         BsonElement("Item3", BsonInt32(3)) ])
+
+                let result = <@ deserialize doc typeof<Number> @>
+                let expected = <@ Three (1, 2, 3) @>
+
+                test <@ %result = %expected @>
