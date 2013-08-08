@@ -19,5 +19,6 @@ module Conventions =
 
             pack.Add(RecordTypeConvention())
             pack.Add(OptionTypeConvention())
+            pack.Add(DiscriminatedUnionConvention())
 
             ConventionRegistry.Register("F# Type Conventions", pack, (fun _ -> true))
