@@ -3,6 +3,8 @@ namespace FSharp.MongoDB.Bson.Serialization.Conventions
 open System
 open System.Reflection
 
+open System.Linq.Expressions
+
 open Microsoft.FSharp.Reflection
 
 open MongoDB.Bson.Serialization.Conventions
@@ -12,10 +14,9 @@ type DiscriminatedUnionConvention() =
 
     let isUnion typ = FSharpType.IsUnion typ
 
-    let makeDelegate (ctor : MethodInfo) =
-        match ctor.GetParameters() with
-        | [| x |] -> typeof<Func<_, _>>.GetGenericTypeDefinition().MakeGenericType([| x.ParameterType; ctor.ReturnType |])
-        | _ -> failwith "currently only supports union cases with a single parameter"
+    let makeDelegate (meth : MethodInfo) =
+        let types = meth.GetParameters() |> Array.map (fun x -> x.ParameterType)
+        Expression.GetDelegateType([| meth.ReturnType |] |> Array.append types)
 
     interface IClassMapConvention with
         member __.Apply(classMap) =
