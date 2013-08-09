@@ -54,6 +54,9 @@
     <Compile Include="Serialization/Conventions/OptionTypeConvention.fs">
       <Link>Serialization/Conventions/OptionTypeConvention.fs</Link>
     </Compile>
+    <Compile Include="Serialization/Serializers/DiscriminatedUnionSerializer.fs">
+      <Link>Serialization/Serializers/DiscriminatedUnionSerializer.fs</Link>
+    </Compile>
     <Compile Include="Serialization/Serializers/OptionTypeSerializer.fs">
       <Link>Serialization/Serializers/OptionTypeSerializer.fs</Link>
     </Compile>

@@ -15,14 +15,19 @@ type FSharpValueSerializationProvider() =
 
     interface IBsonSerializationProvider with
         member __.GetSerializer(typ : System.Type) =
+
+            // Check that `typ` is an option type
             if isOption typ then
                 OptionTypeSerializer(typ) :> IBsonSerializer
-            elif isUnion typ then
-                typ.GetNestedTypes() |> Array.filter isUnion |> Array.iter (fun x ->
-                    BsonClassMap.LookupClassMap(x) |> ignore)
 
-                let classMap = BsonClassMap.LookupClassMap(typ)
-                BsonClassMapSerializer(classMap) :> IBsonSerializer
+            // Check that `typ` is the overall union type, and not a particular union case
+            elif isUnion typ && typ.BaseType = typeof<obj> then
+                typ.GetNestedTypes() |> Array.filter isUnion |> Array.iter (fun x ->
+                    BsonClassMap.LookupClassMap x |> ignore)
+
+                DiscriminatedUnionSerializer(typ) :> IBsonSerializer
+
+            // Otherwise, signal we do not provide serialization for this type
             else null
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
