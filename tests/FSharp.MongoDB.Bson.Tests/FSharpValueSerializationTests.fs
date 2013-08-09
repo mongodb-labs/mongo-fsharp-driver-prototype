@@ -367,3 +367,65 @@ module FSharpValueSerialization =
                 let expected = <@ Three (1, 2, 3) @>
 
                 test <@ %result = %expected @>
+
+        [<TestFixture>]
+        module NullUnion =
+
+            type Letter =
+               | A
+               | B
+               | C
+
+            [<Test>]
+            let ``test serialize discriminated union case letter a``() =
+                let value = A
+
+                let result = <@ serialize value @>
+                let expected = <@ BsonDocument([ BsonElement("_t", BsonString("A")) ]) @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test deserialize discriminated union case letter a``() =
+                let doc = BsonDocument([ BsonElement("_t", BsonString("A")) ])
+
+                let result = <@ deserialize doc typeof<Letter> @>
+                let expected = <@ A @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test serialize discriminated union case letter b``() =
+                let value = B
+
+                let result = <@ serialize value @>
+                let expected = <@ BsonDocument([ BsonElement("_t", BsonString("B")) ]) @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test deserialize discriminated union case letter b``() =
+                let doc = BsonDocument([ BsonElement("_t", BsonString("B")) ])
+
+                let result = <@ deserialize doc typeof<Letter> @>
+                let expected = <@ B @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test serialize discriminated union case letter c``() =
+                let value = C
+
+                let result = <@ serialize value @>
+                let expected = <@ BsonDocument([ BsonElement("_t", BsonString("C")) ]) @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test deserialize discriminated union case letter c``() =
+                let doc = BsonDocument([ BsonElement("_t", BsonString("C")) ])
+
+                let result = <@ deserialize doc typeof<Letter> @>
+                let expected = <@ C @>
+
+                test <@ %result = %expected @>
