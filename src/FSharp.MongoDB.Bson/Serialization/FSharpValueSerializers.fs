@@ -22,10 +22,18 @@ type FSharpValueSerializationProvider() =
 
             // Check that `typ` is the overall union type, and not a particular union case
             elif isUnion typ && typ.BaseType = typeof<obj> then
-                typ.GetNestedTypes() |> Array.filter isUnion |> Array.iter (fun x ->
-                    BsonClassMap.LookupClassMap x |> ignore)
+                let nested = typ.GetNestedTypes() |> Array.filter isUnion
+                let props = typ.GetProperties() |> Array.filter (fun x -> isUnion x.PropertyType)
 
-                DiscriminatedUnionSerializer(typ) :> IBsonSerializer
+                // Handles non-singleton discriminated unions
+                if nested.Length > 0 || props.Length > 0 then
+                    nested |> Array.iter (fun x -> BsonClassMap.LookupClassMap x |> ignore)
+                    DiscriminatedUnionSerializer(typ) :> IBsonSerializer
+
+                // Handles singleton discriminated unions
+                else
+                    let classMap = BsonClassMap.LookupClassMap typ
+                    BsonClassMapSerializer(classMap) :> IBsonSerializer
 
             // Otherwise, signal we do not provide serialization for this type
             else null
