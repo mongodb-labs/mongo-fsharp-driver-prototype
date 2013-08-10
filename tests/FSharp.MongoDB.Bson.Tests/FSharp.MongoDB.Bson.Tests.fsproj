@@ -5,14 +5,12 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>f2f775c4-7c17-4e02-a122-123514fc15c6</ProjectGuid>
+    <ProjectGuid>3e2afa32-3b88-4354-a01d-31513fa9eef9</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>MongoDB.Driver</RootNamespace>
-    <AssemblyName>FSharp.MongoDB.Driver</AssemblyName>
+    <RootNamespace>FSharp.MongoDB.Bson.Tests</RootNamespace>
+    <AssemblyName>FSharp.MongoDB.Bson.Tests</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <Name>FSharp.MongoDB.Driver</Name>
-    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
-    <RestorePackages>true</RestorePackages>
+    <Name>FSharp.MongoDB.Bson.Tests</Name>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -22,7 +20,7 @@
     <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Debug\FSharp.MongoDB.Driver.xml</DocumentationFile>
+    <DocumentationFile>bin\Debug\FSharp.MongoDB.Bson.Tests.xml</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -31,7 +29,7 @@
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Release\FSharp.MongoDB.Driver.xml</DocumentationFile>
+    <DocumentationFile>bin\Release\FSharp.MongoDB.Bson.Tests.xml</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core, Version=4.3.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
@@ -41,45 +39,28 @@
       <HintPath>..\..\lib\mongo-csharp-driver\MongoDB.Driver.Core\bin\Debug\MongoDB.Bson.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="MongoDB.Driver.Core">
-      <HintPath>..\..\lib\mongo-csharp-driver\MongoDB.Driver.Core\bin\Debug\MongoDB.Driver.Core.dll</HintPath>
-    </Reference>
     <Reference Include="mscorlib" />
+    <Reference Include="nunit.framework">
+      <HintPath>..\..\packages\NUnit.2.6.2\lib\nunit.framework.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
+    <Reference Include="Unquote">
+      <HintPath>..\..\packages\Unquote.2.2.2\lib\net40\Unquote.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Properties/AssemblyInfo.fs">
-      <Link>Properties/AssemblyInfo.fs</Link>
+    <Compile Include="FSharpValueSerializationTests.fs">
+      <Link>FSharpValueSerializationTests.fs</Link>
     </Compile>
-    <Compile Include="MongoOperationSettings.fs">
-      <Link>MongoOperationSettings.fs</Link>
-    </Compile>
-    <Compile Include="MongoBackboneSettings.fs">
-      <Link>MongoBackboneSettings.fs</Link>
-    </Compile>
-    <Compile Include="MongoBackbone.fs">
-      <Link>MongoBackbone.fs</Link>
-    </Compile>
-    <Compile Include="MongoCollection.fs">
-      <Link>MongoCollection.fs</Link>
-    </Compile>
-    <Compile Include="FluentMongo.fs">
-      <Link>FluentMongo.fs</Link>
-    </Compile>
-    <Compile Include="MongoDatabase.fs">
-      <Link>MongoDatabase.fs</Link>
-    </Compile>
-    <Compile Include="MongoClient.fs">
-      <Link>MongoClient.fs</Link>
-    </Compile>
-    <Compile Include="QuotableMongo.fs">
-      <Link>QuotableMongo.fs</Link>
-    </Compile>
+    <None Include="packages.config" />
+    <None Include="app.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\FSharp.MongoDB.Bson\FSharp.MongoDB.Bson.fsproj">
+    <ProjectReference Include="..\..\src\FSharp.MongoDB.Bson\FSharp.MongoDB.Bson.fsproj">
       <Name>FSharp.MongoDB.Bson</Name>
       <Project>{3c580b01-b163-4e2d-bd4a-afa062ef813e}</Project>
       <Private>True</Private>
