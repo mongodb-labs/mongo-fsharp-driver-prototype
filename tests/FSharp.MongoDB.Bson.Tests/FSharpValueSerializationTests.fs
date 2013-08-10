@@ -429,3 +429,102 @@ module FSharpValueSerialization =
                 let expected = <@ C @>
 
                 test <@ %result = %expected @>
+
+        [<TestFixture>]
+        module Singleton =
+
+            [<RequireQualifiedAccess>]
+            type Only0 = | Case
+
+            [<RequireQualifiedAccess>]
+            type Only1 = | Case of int
+
+            [<RequireQualifiedAccess>]
+            type Only2 = | Case of int * int
+
+            [<RequireQualifiedAccess>]
+            type Only3 = | Case of int * int * int
+
+            [<Test>]
+            let ``test serialize singleton discriminated union with arity 0``() =
+                let value = Only0.Case
+
+                let result = <@ serialize value @>
+                let expected = <@ BsonDocument([ BsonElement("_t", BsonString("Case")) ]) @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test deserialize singleton discriminated union with arity 0``() =
+                let doc = BsonDocument([ BsonElement("_t", BsonString("Case")) ])
+
+                let result = <@ deserialize doc typeof<Only0> @>
+                let expected = <@ Only0.Case @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test serialize singleton discriminated union with arity 1``() =
+                let value = Only1.Case 1
+
+                let result = <@ serialize value @>
+                let expected = <@ BsonDocument([ BsonElement("_t", BsonString("Case"))
+                                                 BsonElement("Item", BsonInt32(1)) ]) @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test deserialize singleton discriminated union with arity 1``() =
+                let doc = BsonDocument([ BsonElement("_t", BsonString("Case"))
+                                         BsonElement("Item", BsonInt32(1)) ])
+
+                let result = <@ deserialize doc typeof<Only1> @>
+                let expected = <@ Only1.Case 1 @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test serialize singleton discriminated union with arity 2``() =
+                let value = Only2.Case (1, 2)
+
+                let result = <@ serialize value @>
+                let expected = <@ BsonDocument([ BsonElement("_t", BsonString("Case"))
+                                                 BsonElement("Item1", BsonInt32(1))
+                                                 BsonElement("Item2", BsonInt32(2)) ]) @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test deserialize singleton discriminated union with arity 2``() =
+                let doc = BsonDocument([ BsonElement("_t", BsonString("Case"))
+                                         BsonElement("Item1", BsonInt32(1))
+                                         BsonElement("Item2", BsonInt32(2)) ])
+
+                let result = <@ deserialize doc typeof<Only2> @>
+                let expected = <@ Only2.Case (1, 2) @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test serialize singleton discriminated union with arity 3``() =
+                let value = Only3.Case (1, 2, 3)
+
+                let result = <@ serialize value @>
+                let expected = <@ BsonDocument([ BsonElement("_t", BsonString("Case"))
+                                                 BsonElement("Item1", BsonInt32(1))
+                                                 BsonElement("Item2", BsonInt32(2))
+                                                 BsonElement("Item3", BsonInt32(3)) ]) @>
+
+                test <@ %result = %expected @>
+
+            [<Test>]
+            let ``test deserialize singleton discriminated union with arity 3``() =
+                let doc = BsonDocument([ BsonElement("_t", BsonString("Case"))
+                                         BsonElement("Item1", BsonInt32(1))
+                                         BsonElement("Item2", BsonInt32(2))
+                                         BsonElement("Item3", BsonInt32(3)) ])
+
+                let result = <@ deserialize doc typeof<Only3> @>
+                let expected = <@ Only3.Case (1, 2, 3) @>
+
+                test <@ %result = %expected @>
