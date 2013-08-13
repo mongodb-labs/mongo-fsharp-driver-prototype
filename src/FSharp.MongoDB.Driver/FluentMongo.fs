@@ -1,10 +1,6 @@
 namespace FSharp.MongoDB.Driver
 
-open System.Collections
-open System.Collections.Generic
-
 open MongoDB.Bson
-open MongoDB.Bson.Serialization
 
 open MongoDB.Driver.Core
 open MongoDB.Driver.Core.Protocol
@@ -12,43 +8,7 @@ open MongoDB.Driver.Core.Protocol
 [<AutoOpen>]
 module Fluent =
 
-    type QueryOptions = {
-        Comment : string option
-        Hint : BsonDocument option
-        MaxScan : int option
-        Max : obj option
-        Min : obj option
-        Snapshot : bool option
-    }
-
-    type WriteOptions = {
-        Isolated : bool
-        WriteConcern : WriteConcern
-        Others :  (string * obj) list
-    }
-
-    type TextSearchOptions = {
-        Language : string option
-    }
-
-    [<AutoOpen>]
-    module private DefaultOptions =
-        let queryOptions = {
-            Comment = None
-            Hint = None
-            MaxScan = None
-            Max = None
-            Min = None
-            Snapshot = None
-        }
-
-        let writeOptions = {
-            Isolated = false
-            WriteConcern = WriteConcern.Acknowledged
-            Others = []
-        }
-
-    let makeQueryDoc query sort (options : QueryOptions) =
+    let makeQueryDoc query sort (options : Scope.QueryOptions) =
         let addElem name value (doc : BsonDocument) =
             match value with
             | Some x -> doc.Add(name, BsonValue.Create(x))
@@ -66,7 +26,7 @@ module Fluent =
             |> addElem "$snapshot" options.Snapshot
         | None -> failwith "unset query"
 
-    let makeTextSearchDoc clctn text query project limit (options : TextSearchOptions) =
+    let makeTextSearchDoc clctn text query project limit (options : Scope.TextSearchOptions) =
         let addElem name value (doc : BsonDocument) =
             match value with
             | Some x -> doc.Add(name, BsonValue.Create(x))
@@ -79,106 +39,8 @@ module Fluent =
         |> addElem "project" project
         |> addElem "language" options.Language
 
-    type Scope<'DocType> = {
-        Collection : MongoCollection<'DocType>
-
-        Query : BsonDocument option
-        Project : BsonDocument option
-        Sort : BsonDocument option
-
-        Limit : int
-        Skip : int
-
-        QueryOptions : QueryOptions
-        ReadPreference : ReadPreference
-        WriteOptions : WriteOptions
-    } with
-        member x.Get (?flags0) =
-            let flags = defaultArg flags0 QueryFlags.None
-
-            let backbone = x.Collection.backbone
-            let db = x.Collection.db
-            let clctn = x.Collection.clctn
-
-            let query = makeQueryDoc x.Query x.Sort x.QueryOptions
-
-            let project =
-                match x.Project with
-                | Some x -> x
-                | None -> null
-
-            let limit = x.Limit
-            let skip = x.Skip
-
-            let settings = Operation.DefaultSettings.query
-
-            let cursor = backbone.Find<'DocType> db clctn query project limit skip flags settings
-            cursor.GetEnumerator()
-
-        interface IEnumerable<'DocType> with
-            member x.GetEnumerator() = x.Get()
-
-        interface IEnumerable with
-            override x.GetEnumerator() = (x :> IEnumerable<'DocType>).GetEnumerator() :> IEnumerator
-
-    type MongoCollection<'DocType> with
-
-        member x.Insert (doc, ?options0 : WriteOptions) =
-            let options = defaultArg options0 writeOptions
-
-            let flags = InsertFlags.None
-            let settings = { Operation.DefaultSettings.insert with WriteConcern = options.WriteConcern }
-
-            x.backbone.Insert x.db x.clctn doc flags settings
-
-        member x.Find (?query0 : BsonDocument) =
-            let query = defaultArg query0 <| BsonDocument()
-
-            { Collection = x
-
-              Query = Some query
-              Project = None
-              Sort = None
-
-              Limit = 0
-              Skip = 0
-
-              QueryOptions = queryOptions
-              ReadPreference = ReadPreference.Primary
-              WriteOptions = writeOptions
-            }
-
-        member x.Save (doc, ?options0 : WriteOptions) =
-            let options = defaultArg options0 writeOptions
-
-            let idProvider =
-                match BsonSerializer.LookupSerializer(doc.GetType()) with
-                | :? IBsonIdProvider as x -> x
-                | _ -> failwithf "could not find id provider for document type %O" <| doc.GetType()
-
-            let id = ref null
-            let idType = ref null
-            let idGenerator = ref null
-
-            if idProvider.GetDocumentId(doc, id, idType, idGenerator) then // document has an id
-                // Perform an upsert
-                let query = BsonDocument("_id", BsonValue.Create(!id))
-                let update = doc
-
-                let flags = UpdateFlags.Upsert
-                let settings = { Operation.DefaultSettings.update with WriteConcern = options.WriteConcern }
-
-                x.backbone.Update x.db x.clctn query update flags settings
-            else                                                           // document does not have an id
-                // Perform an insert
-                let flags = InsertFlags.None
-                let settings = { Operation.DefaultSettings.insert with WriteConcern = options.WriteConcern
-                                                                       AssignIdOnInsert = true}
-
-                x.backbone.Insert x.db x.clctn doc flags settings
-
     [<RequireQualifiedAccess>]
-    module Query =
+    module Scope =
 
         let find query scope =
             { scope with Query = Some query }
@@ -205,9 +67,9 @@ module Fluent =
             { scope with WriteOptions = options }
 
         let count (scope : Scope<'DocType>) =
-            let backbone = scope.Collection.backbone
-            let db = scope.Collection.db
-            let clctn = scope.Collection.clctn
+            let backbone = scope.Backbone
+            let db = scope.Database
+            let clctn = scope.Collection
 
             let cmd = BsonDocument("count", BsonString(clctn))
 
@@ -224,9 +86,9 @@ module Fluent =
             backbone.Run db cmd
 
         let remove (scope : Scope<'DocType>) =
-            let backbone = scope.Collection.backbone
-            let db = scope.Collection.db
-            let clctn = scope.Collection.clctn
+            let backbone = scope.Backbone
+            let db = scope.Database
+            let clctn = scope.Collection
 
             // Raise error if sort has been specified
             if scope.Sort.IsSome then failwith "sort has been specified"
@@ -246,9 +108,9 @@ module Fluent =
             backbone.Remove db clctn query flags settings
 
         let removeOne (scope : Scope<'DocType>) =
-            let backbone = scope.Collection.backbone
-            let db = scope.Collection.db
-            let clctn = scope.Collection.clctn
+            let backbone = scope.Backbone
+            let db = scope.Database
+            let clctn = scope.Collection
 
             // Raise error if sort has been specified
             if scope.Sort.IsSome then failwith "sort has been specified"
@@ -267,9 +129,9 @@ module Fluent =
             backbone.Remove db clctn query flags settings
 
         let update update (scope : Scope<'DocType>) =
-            let backbone = scope.Collection.backbone
-            let db = scope.Collection.db
-            let clctn = scope.Collection.clctn
+            let backbone = scope.Backbone
+            let db = scope.Database
+            let clctn = scope.Collection
 
             // Raise error if sort has been specified
             if scope.Sort.IsSome then failwith "sort has been specified"
@@ -290,9 +152,9 @@ module Fluent =
             backbone.Update db clctn query update flags settings
 
         let updateOne update (scope : Scope<'DocType>) =
-            let backbone = scope.Collection.backbone
-            let db = scope.Collection.db
-            let clctn = scope.Collection.clctn
+            let backbone = scope.Backbone
+            let db = scope.Database
+            let clctn = scope.Collection
 
             // Raise error if sort has been specified
             if scope.Sort.IsSome then failwith "sort has been specified"
@@ -311,9 +173,9 @@ module Fluent =
             backbone.Update db clctn query update flags settings
 
         let replace update (scope : Scope<'DocType>) =
-            let backbone = scope.Collection.backbone
-            let db = scope.Collection.db
-            let clctn = scope.Collection.clctn
+            let backbone = scope.Backbone
+            let db = scope.Database
+            let clctn = scope.Collection
 
             // Raise error if sort has been specified
             if scope.Sort.IsSome then failwith "sort has been specified"
@@ -334,9 +196,9 @@ module Fluent =
             backbone.Update db clctn query update flags settings
 
         let replaceOne update (scope : Scope<'DocType>) =
-            let backbone = scope.Collection.backbone
-            let db = scope.Collection.db
-            let clctn = scope.Collection.clctn
+            let backbone = scope.Backbone
+            let db = scope.Database
+            let clctn = scope.Collection
 
             // Raise error if sort has been specified
             if scope.Sort.IsSome then failwith "sort has been specified"
@@ -355,9 +217,9 @@ module Fluent =
             backbone.Update db clctn query update flags settings
 
         let explain (scope : Scope<'DocType>) =
-            let backbone = scope.Collection.backbone
-            let db = scope.Collection.db
-            let clctn = scope.Collection.clctn
+            let backbone = scope.Backbone
+            let db = scope.Database
+            let clctn = scope.Collection
 
             let query = makeQueryDoc scope.Query scope.Sort scope.QueryOptions
 
@@ -381,18 +243,18 @@ module Fluent =
             iter.Current
 
         let textSearch text (scope : Scope<'DocType>) =
-            let backbone = scope.Collection.backbone
-            let db = scope.Collection.db
-            let clctn = scope.Collection.clctn
+            let backbone = scope.Backbone
+            let db = scope.Database
+            let clctn = scope.Collection
 
             let cmd = makeTextSearchDoc clctn text scope.Query scope.Project scope.Limit { Language = None }
 
             backbone.Run db cmd
 
-        let textSearchWithOptions text (options : TextSearchOptions) (scope : Scope<'DocType>) =
-            let backbone = scope.Collection.backbone
-            let db = scope.Collection.db
-            let clctn = scope.Collection.clctn
+        let textSearchWithOptions text (options : Scope.TextSearchOptions) (scope : Scope<'DocType>) =
+            let backbone = scope.Backbone
+            let db = scope.Database
+            let clctn = scope.Collection
 
             let cmd = makeTextSearchDoc clctn text scope.Query scope.Project scope.Limit options
 

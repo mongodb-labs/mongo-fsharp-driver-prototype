@@ -62,6 +62,12 @@
     <Compile Include="MongoBackbone.fs">
       <Link>MongoBackbone.fs</Link>
     </Compile>
+    <Compile Include="MongoScopeOptions.fs">
+      <Link>MongoScopeOptions.fs</Link>
+    </Compile>
+    <Compile Include="MongoScope.fs">
+      <Link>MongoScope.fs</Link>
+    </Compile>
     <Compile Include="MongoCollection.fs">
       <Link>MongoCollection.fs</Link>
     </Compile>
