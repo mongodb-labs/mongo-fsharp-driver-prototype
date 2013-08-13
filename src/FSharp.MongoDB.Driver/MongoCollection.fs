@@ -1,5 +1,11 @@
 namespace FSharp.MongoDB.Driver
 
+open MongoDB.Driver.Core
+
+[<Interface>]
+type IMongoCollection<'DocType> =
+    abstract member Drop : unit -> #CommandResult
+
 type MongoCollection<'DocType> =
 
     val internal backbone : MongoBackbone
@@ -12,4 +18,5 @@ type MongoCollection<'DocType> =
         clctn = clctn
     }
 
-    member x.Drop () = x.backbone.DropCollection x.db x.clctn
+    interface IMongoCollection<'DocType> with
+        member x.Drop () = x.backbone.DropCollection x.db x.clctn

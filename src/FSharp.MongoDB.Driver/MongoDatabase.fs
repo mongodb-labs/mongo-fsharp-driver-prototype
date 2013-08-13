@@ -1,6 +1,13 @@
 namespace FSharp.MongoDB.Driver
 
-type MongoDatabase =
+open MongoDB.Driver.Core
+
+[<Interface>]
+type IMongoDatabase =
+    abstract member Drop : unit -> #CommandResult
+    abstract member GetCollection<'DocType> : string -> IMongoCollection<'DocType>
+
+type internal MongoDatabase =
 
     val private backbone : MongoBackbone
     val private db : string
@@ -10,6 +17,8 @@ type MongoDatabase =
         db = db
     }
 
-    member x.Drop () = x.backbone.DropDatabase x.db
+    interface IMongoDatabase with
+        member x.Drop () = x.backbone.DropDatabase x.db
 
-    member x.GetCollection<'DocType> clctn = MongoCollection<'DocType>(x.backbone, x.db, clctn)
+        member x.GetCollection<'DocType> clctn =
+            MongoCollection<'DocType>(x.backbone, x.db, clctn) :> IMongoCollection<'DocType>
