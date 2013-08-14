@@ -99,3 +99,58 @@ module FluentMongo =
                         test <@ elem.Value = found.[elem.Name] @>
 
             checkUpdate scope
+
+    [<TestFixture>]
+    module RemoveOps =
+
+        let private clctn = "removeops"
+
+        let private collection = database.GetCollection clctn
+
+        [<TearDown>]
+        let ``drop collection``() =
+            collection.Drop() |> ignore
+
+        [<Test>]
+        let ``test fluent api remove single``() =
+            let docs = [ BsonDocument([ BsonElement("_id", BsonInt32(11));
+                                        BsonElement("item", BsonString("pencil"));
+                                        BsonElement("qty", BsonInt32(50));
+                                        BsonElement("type", BsonString("no.2")) ]);
+                         BsonDocument([ BsonElement("item", BsonString("pen"));
+                                        BsonElement("qty", BsonInt32(20)) ]);
+                         BsonDocument([ BsonElement("item", BsonString("eraser"));
+                                        BsonElement("qty", BsonInt32(25)) ]) ]
+
+            for x in docs do
+                collection.Insert x |> ignore
+
+            let scope = collection.Find (BsonDocument("_id", BsonInt32(11)))
+
+            let checkInsert (scope : Scope<BsonDocument>) =
+                let res = scope |> Seq.toList
+
+                res.Length =? 1 // should only have single document in collection
+                let found = res.Head
+
+                let doc = docs.[0]
+
+                // Check that found document contains correct values for elements of inserted document
+                for elem in doc do
+                    test <@ elem.Value = found.[elem.Name] @>
+
+                // Check that found document contains no other fields than previously examined
+                test <@ doc.ElementCount = found.ElementCount @>
+
+            checkInsert scope
+
+            scope |> Scope.removeOne |> ignore
+
+            let removeQuery = BsonDocument("_id", BsonInt32(11))
+
+            let checkRemove (scope : Scope<BsonDocument>) =
+                let res = scope |> Seq.toList
+
+                res.Length =? 0 // should not find any documents
+
+            checkRemove scope
