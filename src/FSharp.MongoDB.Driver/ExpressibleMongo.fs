@@ -25,10 +25,21 @@ module Expression =
         member __.Quote (expr : Expr<#seq<'a>>) = expr
 
         member x.Run (expr : Expr<#seq<'a>>) =
+            let rec (|NestedWhere|_|) expr =
+                match expr with
+                // REVIEW: should we $and the conditions together?
+                | SpecificCall <@ x.Where @> (_, _, [ NestedWhere _; q ]) ->
+                    let casted : Expr<'a -> bool> = q |> Expr.Cast
+                    Some casted
+
+                | SpecificCall <@ x.Where @> (_, _, [ _; q ]) ->
+                    let casted : Expr<'a -> bool> = q |> Expr.Cast
+                    Some casted
+
+                | _ -> None
+
             match expr with
-            | SpecificCall <@ x.Where @> (_, _, [ _; q ]) ->
-                let casted : Expr<'a -> bool> = q |> Expr.Cast
-                bson casted
+            | NestedWhere (q) -> bson q
 
             | _ -> failwith "unsupported operation"
 
