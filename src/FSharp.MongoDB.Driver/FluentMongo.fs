@@ -8,37 +8,9 @@ open MongoDB.Driver.Core.Protocol
 [<AutoOpen>]
 module Fluent =
 
-    let makeQueryDoc query sort (options : Scope.QueryOptions) =
-        let addElem name value (doc : BsonDocument) =
-            match value with
-            | Some x -> doc.Add(name, BsonValue.Create(x))
-            | None -> doc
+    open Helpers
 
-        match query with
-        | Some x ->
-            BsonDocument("$query", x)
-            |> addElem "$orderby" sort
-            |> addElem "$comment" options.Comment
-            |> addElem "$hint" options.Hint
-            |> addElem "$maxScan" options.MaxScan
-            |> addElem "$max" options.Max
-            |> addElem "$min" options.Min
-            |> addElem "$snapshot" options.Snapshot
-        | None -> failwith "unset query"
-
-    let makeTextSearchDoc clctn text query project limit (options : Scope.TextSearchOptions) =
-        let addElem name value (doc : BsonDocument) =
-            match value with
-            | Some x -> doc.Add(name, BsonValue.Create(x))
-            | None -> doc
-
-        BsonDocument([ BsonElement("text", BsonString(clctn))
-                       BsonElement("search", BsonString(text))
-                       BsonElement("limit", BsonInt32(limit)) ])
-        |> addElem "filter" query
-        |> addElem "project" project
-        |> addElem "language" options.Language
-
+    [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
     [<RequireQualifiedAccess>]
     module Scope =
 

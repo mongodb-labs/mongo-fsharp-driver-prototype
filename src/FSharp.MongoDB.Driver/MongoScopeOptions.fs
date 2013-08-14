@@ -9,6 +9,7 @@ open MongoDB.Bson.Serialization
 open MongoDB.Driver.Core
 open MongoDB.Driver.Core.Protocol
 
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 [<RequireQualifiedAccess>]
 module Scope =
 
