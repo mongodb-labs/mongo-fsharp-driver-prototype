@@ -1,5 +1,8 @@
 namespace FSharp.MongoDB.Driver
 
+open System.Collections
+open System.Collections.Generic
+
 open MongoDB.Bson
 open MongoDB.Bson.Serialization
 
@@ -8,6 +11,7 @@ open MongoDB.Driver.Core.Protocol
 
 [<Interface>]
 type IMongoCollection<'DocType> =
+    inherit IEnumerable<'DocType>
 
     abstract member Drop : unit -> #CommandResult
 
@@ -93,3 +97,9 @@ type MongoCollection<'DocType> =
                                                                        AssignIdOnInsert = true}
 
                 x.backbone.Insert x.db x.clctn doc flags settings
+
+    interface IEnumerable<'DocType> with
+        member x.GetEnumerator() = (x :> IMongoCollection<'DocType>).Find().Get()
+
+    interface IEnumerable with
+        member x.GetEnumerator() = (x :> IEnumerable<'DocType>).GetEnumerator() :> IEnumerator
