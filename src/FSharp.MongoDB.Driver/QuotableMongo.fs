@@ -98,14 +98,13 @@ module Quotations =
 
         let rec (|CallDynamic|_|) expr =
             match expr with
-            | SpecificCall <@ (?) @> (_, _, [ Var (var); String (field) ]) ->
+            | SpecificCall <@ (?) @> (_, _, [ Var (var); String (field) ])
+            | Coerce (CallDynamic (var, field), _) ->
                 Some(var, field)
 
-            | SpecificCall <@ (?) @> (_, _, [ CallDynamic (var, subdoc); String (field) ]) ->
+            | SpecificCall <@ (?) @> (_, _, [ CallDynamic (var, subdoc); String (field) ])
+            | SpecificCall <@ (?) @> (_, _, [ GetProperty (var, subdoc); String (field) ]) ->
                 Some(var, sprintf "%s.%s" subdoc field)
-
-            | GetProperty (var, field) ->
-                Some(var, field)
 
             | _ -> None
 
