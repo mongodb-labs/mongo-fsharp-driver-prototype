@@ -19,6 +19,9 @@ module Expression =
     type IMongoUpdatable<'a> =
         inherit seq<'a>
 
+    type IMongoDeferrable<'a> =
+        inherit seq<'a>
+
     [<RequireQualifiedAccess>]
     type private TransformResult = // (fun * args * cont)
        | Query of (Var -> Expr -> BsonElement) * (Var * Expr) * Expr
@@ -29,12 +32,17 @@ module Expression =
        | Query of (Var -> Expr -> BsonElement) * (Var * Expr)
        | Update of (Var -> string -> Expr -> BsonElement) * (Var * string * Expr)
 
+    type MongoDeferredOperation =
+       | Query of BsonDocument
+       | Update of BsonDocument * BsonDocument
+
     [<RequireQualifiedAccess>]
     type MongoOperationResult<'a> =
        | Query of Scope<'a>
        | Update of WriteConcernResult
+       | Deferred of MongoDeferredOperation
 
-    type MongoQueryBuilder() =
+    type MongoBuilder() =
 
         let mkCall op args =
             match <@ ignore %op @> with
@@ -60,7 +68,7 @@ module Expression =
             | List (values, typ) -> Some (box values, typ)
             | _ -> None
 
-        let transform (x : MongoQueryBuilder) expr =
+        let transform (x : MongoBuilder) expr =
             match expr with
             // Query operations
             | SpecificCall <@ x.Where @> (_, _, [ cont; Lambda (var, body) ]) ->
@@ -99,7 +107,7 @@ module Expression =
 
             | _ -> None
 
-        let traverse (x : MongoQueryBuilder) expr =
+        let traverse (x : MongoBuilder) expr =
             let rec traverse builder expr res =
                 match transform builder expr with
                 | Some trans ->
@@ -126,15 +134,46 @@ module Expression =
 
         member __.Quote (expr : Expr<#seq<'a>>) = expr
 
-        member x.Run (expr : Expr<#seq<'a>>) =
-            let elems =
-                traverse x expr
-                |> List.map (fun x ->
-                    match x with
-                    | TraverseResult.Query (f, x) -> x ||> f
-                    | TraverseResult.Update (f, x) -> x |||> f)
+        member x.Run (expr : Expr<#seq<'a>>) : MongoOperationResult<'a> =
+            System.Console.WriteLine(sprintf "expr:\n%A" expr)
 
-            BsonDocument(elems)
+            let isUpdate = ref false
+
+            let queryDoc = BsonDocument()
+            let updateDoc = BsonDocument()
+
+            let prepareDocs expr =
+                traverse x expr
+                |> List.iter (fun x ->
+                    match x with
+                    | TraverseResult.Query (f, x) ->
+                        let elem = x ||> f
+                        queryDoc.Add elem |> ignore
+
+                    | TraverseResult.Update (f, x) ->
+                        isUpdate := true
+
+                        let elem = x |||> f
+                        updateDoc.Add elem |> ignore
+                    )
+
+            match expr with
+            | SpecificCall <@ x.Defer @> (_, _, [ expr ]) ->
+                prepareDocs expr
+
+                let res =
+                    if !isUpdate then
+                        MongoDeferredOperation.Update (queryDoc, updateDoc)
+                    else
+                        MongoDeferredOperation.Query queryDoc
+
+                MongoOperationResult.Deferred res
+
+            | _ -> invalidOp "not implemented yet"
+
+        [<CustomOperation("defer")>]
+        member __.Defer (source : #seq<'a>) : IMongoDeferrable<'a> =
+            invalidOp "not implemented"
 
         [<CustomOperation("where", MaintainsVariableSpace = true)>]
         member __.Where (source : IMongoQueryable<'a>, [<ProjectionParameter>] predicate : 'a -> bool) : IMongoQueryable<'a> =
@@ -156,4 +195,4 @@ module Expression =
         member __.Dec (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b, value : 'b) : IMongoUpdatable<'a> =
             invalidOp "not implemented"
 
-    let mongo = new MongoQueryBuilder()
+    let mongo = new MongoBuilder()
