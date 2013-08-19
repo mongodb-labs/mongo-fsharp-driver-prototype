@@ -162,7 +162,7 @@ module Expression =
                 prepareDocs expr
 
                 let res =
-                    if !isUpdate then
+                    if !isUpdate then // dereference
                         MongoDeferredOperation.Update (queryDoc, updateDoc)
                     else
                         MongoDeferredOperation.Query queryDoc
@@ -183,16 +183,52 @@ module Expression =
         member __.Update (source : IMongoQueryable<'a>) : IMongoUpdatable<'a> =
             invalidOp "not implemented"
 
-        [<CustomOperation("set", MaintainsVariableSpace = true)>]
-        member __.Set (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b, value : 'b) : IMongoUpdatable<'a> =
-            invalidOp "not implemented"
-
         [<CustomOperation("inc", MaintainsVariableSpace = true)>]
         member __.Inc (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b, value : 'b) : IMongoUpdatable<'a> =
             invalidOp "not implemented"
 
         [<CustomOperation("dec", MaintainsVariableSpace = true)>]
         member __.Dec (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b, value : 'b) : IMongoUpdatable<'a> =
+            invalidOp "not implemented"
+
+        [<CustomOperation("set", MaintainsVariableSpace = true)>]
+        member __.Set (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b, value : 'b) : IMongoUpdatable<'a> =
+            invalidOp "not implemented"
+
+        [<CustomOperation("unset", MaintainsVariableSpace = true)>]
+        member __.Unset (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field) : IMongoUpdatable<'a> =
+            invalidOp "not implemented"
+
+        [<CustomOperation("addToSet", MaintainsVariableSpace = true)>]
+        member __.AddToSet (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list, value : 'b) : IMongoUpdatable<'a> =
+            invalidOp "not implemented"
+
+        [<CustomOperation("popLeft", MaintainsVariableSpace = true)>]
+        member __.PopLeft (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list) : IMongoUpdatable<'a> =
+            invalidOp "not implemented"
+
+        [<CustomOperation("popRight", MaintainsVariableSpace = true)>]
+        member __.PopRight (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list) : IMongoUpdatable<'a> =
+            invalidOp "not implemented"
+
+        [<CustomOperation("pull", MaintainsVariableSpace = true)>]
+        member __.Pull (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list, predicate : 'b -> bool) : IMongoUpdatable<'a> =
+            invalidOp "not implemented"
+
+        [<CustomOperation("pullAll", MaintainsVariableSpace = true)>]
+        member __.PullAll (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list, values : 'b list) : IMongoUpdatable<'a> =
+            invalidOp "not implemented"
+
+        [<CustomOperation("push", MaintainsVariableSpace = true)>]
+        member __.Push (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list, value : 'b) : IMongoUpdatable<'a> =
+            invalidOp "not implemented"
+
+        [<CustomOperation("bitAnd", MaintainsVariableSpace = true)>]
+        member __.BitAnd (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b, value : 'b) : IMongoUpdatable<'a> =
+            invalidOp "not implemented"
+
+        [<CustomOperation("bitOr", MaintainsVariableSpace = true)>]
+        member __.BitOr (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b, value : 'b) : IMongoUpdatable<'a> =
             invalidOp "not implemented"
 
     let mongo = new MongoBuilder()
