@@ -76,13 +76,6 @@ module Expression =
                 Some res
 
             // Update operations
-            | SpecificCall <@ x.Set @> (_, _, [ cont; Lambda (_, body); ValueOrList (value, typ) ]) ->
-                match body with
-                | GetField (var, field) ->
-                    let res = TransformResult.Update (updateParser, (var, field, Expr.Value value), cont)
-                    Some res
-                | _ -> failwithf "unrecognized expression\n%A" body
-
             | SpecificCall <@ x.Inc @> (_, _, [ cont; Lambda (_, body); Int32 (value) ]) ->
                 let (var, field, body) =
                     match body with
@@ -104,6 +97,24 @@ module Expression =
                 let call = mkCall <@ (-) @> [ body; Expr.Value value ]
                 let res = TransformResult.Update (updateParser, (var, field, call), cont)
                 Some res
+
+            | SpecificCall <@ x.Set @> (_, _, [ cont; Lambda (_, body); ValueOrList (value, _) ]) ->
+                match body with
+                | GetField (var, field) ->
+                    let res = TransformResult.Update (updateParser, (var, field, Expr.Value value), cont)
+                    Some res
+                | _ -> failwithf "unrecognized expression\n%A" body
+
+            | SpecificCall <@ x.Unset @> (_, _, [ cont; Lambda (_, body) ]) ->
+                match body with
+                | GetField (var, field) ->
+                    let cases =
+                        FSharpType.GetUnionCases(typeof<option<_>>)
+                        |> Seq.map (fun x -> (x.Name, x))
+                        |> dict
+                    let res = TransformResult.Update (updateParser, (var, field, Expr.NewUnionCase(cases.["None"], []) ), cont)
+                    Some res
+                | _ -> failwithf "unrecognized expression\n%A" body
 
             | _ -> None
 
@@ -135,7 +146,6 @@ module Expression =
         member __.Quote (expr : Expr<#seq<'a>>) = expr
 
         member x.Run (expr : Expr<#seq<'a>>) : MongoOperationResult<'a> =
-            System.Console.WriteLine(sprintf "expr:\n%A" expr)
 
             let isUpdate = ref false
 

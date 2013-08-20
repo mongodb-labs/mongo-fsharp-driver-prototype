@@ -228,6 +228,52 @@ module ExpressibleMongo =
 
                 test <@ %update = %expected @>
 
+            [<Test>]
+            let ``test mongo workflow unset``() =
+                let clctn : seq<BsonDocument> = Seq.empty |> Seq.cast
+
+                let update =
+                    <@
+                        match
+                            mongo { for x in clctn do
+                                    update
+                                    unset x?option
+                                    defer
+                            } with
+                        | MongoOperationResult.Deferred x ->
+                            match x with
+                            | MongoDeferredOperation.Update (_, update) -> update
+                            | _ -> failwith "expected update operation"
+                        | _ -> failwith "expected deferred result"
+                    @>
+
+                let expected = <@ BsonDocument("$unset", BsonDocument("option", BsonInt32(1))) @>
+
+                test <@ %update = %expected @>
+
+            [<Test>]
+            let ``test typed mongo workflow unset``() =
+                let clctn : seq<Immutable.Item> = Seq.empty |> Seq.cast
+
+                let update =
+                    <@
+                        match
+                            mongo { for x in clctn do
+                                    update
+                                    unset (x : Immutable.Item).option
+                                    defer
+                            } with
+                        | MongoOperationResult.Deferred x ->
+                            match x with
+                            | MongoDeferredOperation.Update (_, update) -> update
+                            | _ -> failwith "expected update operation"
+                        | _ -> failwith "expected deferred result"
+                    @>
+
+                let expected = <@ BsonDocument("$unset", BsonDocument("option", BsonInt32(1))) @>
+
+                test <@ %update = %expected @>
+
         [<TestFixture>]
         module Array =
 
