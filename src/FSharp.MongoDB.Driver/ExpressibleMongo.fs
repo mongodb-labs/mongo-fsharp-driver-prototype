@@ -53,11 +53,15 @@ module Expression =
             | _ -> failwith "unable to acquire methodinfo"
 
         let rec (|List|_|) expr =
+            let makeGenericListType typ =
+                typedefof<list<_>>.MakeGenericType [| typ |]
+
             match expr with
             | NewUnionCase (uci, args) when isListUnionCase uci ->
                 match args with
                 | [] -> Some([], typeof<unit>)
-                | [ head; List (tail, _) ] -> Some(head :: tail, typeof<Expr>)
+                | [ Value (head, typ); List (tail, _) ] -> Some (head :: tail, typ)
+                | [ List (head, typ); List (tail, _) ] -> Some (box head :: tail, makeGenericListType typ)
                 | _ -> failwith "unexpected list union case"
 
             | _ -> None
@@ -67,6 +71,10 @@ module Expression =
             | Value (value, typ) -> Some (value, typ)
             | List (values, typ) -> Some (box values, typ)
             | _ -> None
+
+        // Ignores inputs and returns partially applied parameter
+        //      intended usage: fakeParser elem
+        let fakeParser (res : BsonElement) (var : Var) (field : string) (expr : Expr) = res
 
         let transform (x : MongoBuilder) expr =
             match expr with
@@ -115,6 +123,94 @@ module Expression =
                     let res = TransformResult.Update (updateParser, (var, field, Expr.NewUnionCase(cases.["None"], []) ), cont)
                     Some res
                 | _ -> failwithf "unrecognized expression\n%A" body
+
+            | SpecificCall <@ x.AddToSet @> (_, _, [ cont; Lambda (_, body); ValueOrList (value, _) ]) ->
+                let (var, field, body) =
+                    match body with
+                    | CallDynamic (var, field) -> (var, field, body)
+                    | GetProperty (var, field) -> (var, field, body)
+                    | _ -> failwithf "unrecognized expression\n%A" body
+
+                let elem = BsonElement("$addToSet", BsonDocument(field, BsonValue.Create value))
+                let res = TransformResult.Update (fakeParser elem, (var, field, body), cont)
+                Some res
+
+            | SpecificCall <@ x.PopLeft @> (_, _, [ cont; Lambda (_, body) ]) ->
+                let (var, field, body) =
+                    match body with
+                    | CallDynamic (var, field) -> (var, field, body)
+                    | GetProperty (var, field) -> (var, field, body)
+                    | _ -> failwithf "unrecognized expression\n%A" body
+
+                let elem = BsonElement("$pop", BsonDocument(field, BsonInt32(-1)))
+                let res = TransformResult.Update (fakeParser elem, (var, field, body), cont)
+                Some res
+
+            | SpecificCall <@ x.PopRight @> (_, _, [ cont; Lambda (_, body) ]) ->
+                let (var, field, body) =
+                    match body with
+                    | CallDynamic (var, field) -> (var, field, body)
+                    | GetProperty (var, field) -> (var, field, body)
+                    | _ -> failwithf "unrecognized expression\n%A" body
+
+                let elem = BsonElement("$pop", BsonDocument(field, BsonInt32(1)))
+                let res = TransformResult.Update (fakeParser elem, (var, field, body), cont)
+                Some res
+
+            | SpecificCall <@ x.Pull @> (_, _, [ cont; Lambda (_, body); Lambda (lambdaVar, lambdaExpr) ]) ->
+                let (var, field, body) =
+                    match body with
+                    | CallDynamic (var, field) -> (var, field, body)
+                    | GetProperty (var, field) -> (var, field, body)
+                    | _ -> failwithf "unrecognized expression\n%A" body
+
+                let elem = BsonElement("$pull", BsonDocument(field, BsonDocument(queryParser lambdaVar lambdaExpr)))
+                let res = TransformResult.Update (fakeParser elem, (var, field, body), cont)
+                Some res
+
+            | SpecificCall <@ x.PullAll @> (_, _, [ cont; Lambda (_, body); ValueOrList (value, _) ]) ->
+                let (var, field, body) =
+                    match body with
+                    | CallDynamic (var, field) -> (var, field, body)
+                    | GetProperty (var, field) -> (var, field, body)
+                    | _ -> failwithf "unrecognized expression\n%A" body
+
+                let elem = BsonElement("$pullAll", BsonDocument(field, BsonValue.Create value))
+                let res = TransformResult.Update (fakeParser elem, (var, field, body), cont)
+                Some res
+
+            | SpecificCall <@ x.Push @> (_, _, [ cont; Lambda (_, body); ValueOrList (value, _) ]) ->
+                let (var, field, body) =
+                    match body with
+                    | CallDynamic (var, field) -> (var, field, body)
+                    | GetProperty (var, field) -> (var, field, body)
+                    | _ -> failwithf "unrecognized expression\n%A" body
+
+                let elem = BsonElement("$push", BsonDocument(field, BsonValue.Create value))
+                let res = TransformResult.Update (fakeParser elem, (var, field, body), cont)
+                Some res
+
+            | SpecificCall <@ x.BitAnd @> (_, _, [ cont; Lambda (_, body); Int32 (value) ]) ->
+                let (var, field, body) =
+                    match body with
+                    | CallDynamic (var, field) -> (var, field, body)
+                    | GetProperty (var, field) -> (var, field, body)
+                    | _ -> failwithf "unrecognized expression\n%A" body
+
+                let elem = BsonElement("$bit", BsonDocument(field, BsonDocument("and", BsonInt32(value))))
+                let res = TransformResult.Update (fakeParser elem, (var, field, body), cont)
+                Some res
+
+            | SpecificCall <@ x.BitOr @> (_, _, [ cont; Lambda (_, body); Int32 (value) ]) ->
+                let (var, field, body) =
+                    match body with
+                    | CallDynamic (var, field) -> (var, field, body)
+                    | GetProperty (var, field) -> (var, field, body)
+                    | _ -> failwithf "unrecognized expression\n%A" body
+
+                let elem = BsonElement("$bit", BsonDocument(field, BsonDocument("or", BsonInt32(value))))
+                let res = TransformResult.Update (fakeParser elem, (var, field, body), cont)
+                Some res
 
             | _ -> None
 
