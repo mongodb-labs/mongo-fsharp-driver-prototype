@@ -19,6 +19,9 @@ module Expression =
     type IMongoUpdatable<'a> =
         inherit seq<'a>
 
+    type IMongoEachUpdatable<'a> =
+        inherit IMongoUpdatable<'a>
+
     type IMongoDeferrable<'a> =
         inherit seq<'a>
 
@@ -77,6 +80,36 @@ module Expression =
         let fakeParser (res : BsonElement) (var : Var) (field : string) (expr : Expr) = res
 
         let transform (x : MongoBuilder) expr =
+            let (|PushEach|_|) expr =
+                match expr with
+                | SpecificCall <@ x.PushEach @> (_, _, [ cont; Lambda (_, body); List (values, _) ]) ->
+                    let (var, field, body) =
+                        match body with
+                        | CallDynamic (var, field) -> (var, field, body)
+                        | GetProperty (var, field) -> (var, field, body)
+                        | _ -> failwithf "unrecognized expression\n%A" body
+
+                    let elem =  BsonElement("$push", BsonDocument(field, BsonDocument("$each", BsonArray(values))))
+                    let res = TransformResult.Update (fakeParser elem, (var, field, body), cont)
+                    Some res
+
+                | _ -> None
+
+            let rec (|PushEachWithModifiers|_|) expr =
+                match expr with
+                | SpecificCall <@ x.Slice @> (_, _, [ PushEach (res); Int32 (value) ])
+                | SpecificCall <@ x.Slice @> (_, _, [ PushEachWithModifiers (res); Int32 (value) ]) ->
+                    let elem =
+                        match res with
+                        | TransformResult.Update (f, args, cont) -> args |||> f
+                        | _ -> failwith "expected update transform result"
+
+                    // overwrite, since using last assigned value
+                    elem.Value.[0].AsBsonDocument.Set("$slice", BsonInt32(value)) |> ignore // e.g. { $push: { <field>: { $each ... } }
+                    Some res
+
+                | _ -> None
+
             match expr with
             // Query operations
             | SpecificCall <@ x.Where @> (_, _, [ cont; Lambda (var, body) ]) ->
@@ -190,6 +223,21 @@ module Expression =
                 let res = TransformResult.Update (fakeParser elem, (var, field, body), cont)
                 Some res
 
+            | SpecificCall <@ x.AddToSetEach @> (_, _, [ cont; Lambda (_, body); List (values, _) ]) ->
+                let (var, field, body) =
+                    match body with
+                    | CallDynamic (var, field) -> (var, field, body)
+                    | GetProperty (var, field) -> (var, field, body)
+                    | _ -> failwithf "unrecognized expression\n%A" body
+
+                let elem =  BsonElement("$addToSet", BsonDocument(field, BsonDocument("$each", BsonArray(values))))
+                let res = TransformResult.Update (fakeParser elem, (var, field, body), cont)
+                Some res
+
+            | PushEach (res) -> Some res
+
+            | PushEachWithModifiers (res) -> Some res
+
             | SpecificCall <@ x.BitAnd @> (_, _, [ cont; Lambda (_, body); Int32 (value) ]) ->
                 let (var, field, body) =
                     match body with
@@ -290,51 +338,63 @@ module Expression =
             invalidOp "not implemented"
 
         [<CustomOperation("inc", MaintainsVariableSpace = true)>]
-        member __.Inc (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b, value : 'b) : IMongoUpdatable<'a> =
+        member __.Inc (source : #IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b, value : 'b) : IMongoUpdatable<'a> =
             invalidOp "not implemented"
 
         [<CustomOperation("dec", MaintainsVariableSpace = true)>]
-        member __.Dec (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b, value : 'b) : IMongoUpdatable<'a> =
+        member __.Dec (source : #IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b, value : 'b) : IMongoUpdatable<'a> =
             invalidOp "not implemented"
 
         [<CustomOperation("set", MaintainsVariableSpace = true)>]
-        member __.Set (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b, value : 'b) : IMongoUpdatable<'a> =
+        member __.Set (source : #IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b, value : 'b) : IMongoUpdatable<'a> =
             invalidOp "not implemented"
 
         [<CustomOperation("unset", MaintainsVariableSpace = true)>]
-        member __.Unset (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field) : IMongoUpdatable<'a> =
+        member __.Unset (source : #IMongoUpdatable<'a>, [<ProjectionParameter>] field) : IMongoUpdatable<'a> =
             invalidOp "not implemented"
 
         [<CustomOperation("addToSet", MaintainsVariableSpace = true)>]
-        member __.AddToSet (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list, value : 'b) : IMongoUpdatable<'a> =
+        member __.AddToSet (source : #IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list, value : 'b) : IMongoUpdatable<'a> =
             invalidOp "not implemented"
 
         [<CustomOperation("popLeft", MaintainsVariableSpace = true)>]
-        member __.PopLeft (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list) : IMongoUpdatable<'a> =
+        member __.PopLeft (source : #IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list) : IMongoUpdatable<'a> =
             invalidOp "not implemented"
 
         [<CustomOperation("popRight", MaintainsVariableSpace = true)>]
-        member __.PopRight (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list) : IMongoUpdatable<'a> =
+        member __.PopRight (source : #IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list) : IMongoUpdatable<'a> =
             invalidOp "not implemented"
 
         [<CustomOperation("pull", MaintainsVariableSpace = true)>]
-        member __.Pull (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list, predicate : 'b -> bool) : IMongoUpdatable<'a> =
+        member __.Pull (source : #IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list, predicate : 'b -> bool) : IMongoUpdatable<'a> =
             invalidOp "not implemented"
 
         [<CustomOperation("pullAll", MaintainsVariableSpace = true)>]
-        member __.PullAll (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list, values : 'b list) : IMongoUpdatable<'a> =
+        member __.PullAll (source : #IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list, values : 'b list) : IMongoUpdatable<'a> =
             invalidOp "not implemented"
 
         [<CustomOperation("push", MaintainsVariableSpace = true)>]
-        member __.Push (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list, value : 'b) : IMongoUpdatable<'a> =
+        member __.Push (source : #IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list, value : 'b) : IMongoUpdatable<'a> =
+            invalidOp "not implemented"
+
+        [<CustomOperation("addToSetEach", MaintainsVariableSpace = true)>]
+        member __.AddToSetEach (source : #IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list, values : 'b list) : IMongoEachUpdatable<'a> =
+            invalidOp "not implemented"
+
+        [<CustomOperation("pushEach", MaintainsVariableSpace = true)>]
+        member __.PushEach (source : #IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b list, values : 'b list) : IMongoEachUpdatable<'a> =
+            invalidOp "not implemented"
+
+        [<CustomOperation("slice", MaintainsVariableSpace = true)>]
+        member __.Slice (source : IMongoEachUpdatable<'a>, value : int) : IMongoEachUpdatable<'a> =
             invalidOp "not implemented"
 
         [<CustomOperation("bitAnd", MaintainsVariableSpace = true)>]
-        member __.BitAnd (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b, value : 'b) : IMongoUpdatable<'a> =
+        member __.BitAnd (source : #IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b, value : 'b) : IMongoUpdatable<'a> =
             invalidOp "not implemented"
 
         [<CustomOperation("bitOr", MaintainsVariableSpace = true)>]
-        member __.BitOr (source : IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b, value : 'b) : IMongoUpdatable<'a> =
+        member __.BitOr (source : #IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b, value : 'b) : IMongoUpdatable<'a> =
             invalidOp "not implemented"
 
     let mongo = new MongoBuilder()

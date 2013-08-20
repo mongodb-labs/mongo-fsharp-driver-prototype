@@ -553,6 +553,148 @@ module ExpressibleMongo =
 
                 test <@ %update = %expected @>
 
+            [<Test>]
+            let ``test mongo workflow add to set with each modifier``() =
+                let clctn : seq<BsonDocument> = Seq.empty |> Seq.cast
+
+                let update =
+                        <@
+                            match
+                                mongo { for x in clctn do
+                                        update
+                                        addToSetEach x?tags [ "appliances"; "school"; "book" ]
+                                        defer
+                                } with
+                            | MongoOperationResult.Deferred x ->
+                                match x with
+                                | MongoDeferredOperation.Update (_, update) -> update
+                                | _ -> failwith "expected update operation"
+                            | _ -> failwith "expected deferred result"
+                        @>
+
+                let expected = <@ BsonDocument("$addToSet", BsonDocument("tags", BsonDocument("$each", BsonArray([ "appliances"; "school"; "book" ])))) @>
+
+                test <@ %update = %expected @>
+
+            [<Test>]
+            let ``test typed mongo workflow add to set with each modifier``() =
+                let clctn : seq<BsonDocument> = Seq.empty |> Seq.cast
+
+                let update =
+                        <@
+                            match
+                                mongo { for x in clctn do
+                                        update
+                                        addToSetEach (x : Immutable.Item).tags [ "appliances"; "school"; "book" ]
+                                        defer
+                                } with
+                            | MongoOperationResult.Deferred x ->
+                                match x with
+                                | MongoDeferredOperation.Update (_, update) -> update
+                                | _ -> failwith "expected update operation"
+                            | _ -> failwith "expected deferred result"
+                        @>
+
+                let expected = <@ BsonDocument("$addToSet", BsonDocument("tags", BsonDocument("$each", BsonArray([ "appliances"; "school"; "book" ])))) @>
+
+                test <@ %update = %expected @>
+
+            [<Test>]
+            let ``test mongo workflow push with each modifier``() =
+                let clctn : seq<BsonDocument> = Seq.empty |> Seq.cast
+
+                let update =
+                        <@
+                            match
+                                mongo { for x in clctn do
+                                        update
+                                        pushEach x?tags [ "appliances"; "school"; "book" ]
+                                        defer
+                                } with
+                            | MongoOperationResult.Deferred x ->
+                                match x with
+                                | MongoDeferredOperation.Update (_, update) -> update
+                                | _ -> failwith "expected update operation"
+                            | _ -> failwith "expected deferred result"
+                        @>
+
+                let expected = <@ BsonDocument("$push", BsonDocument("tags", BsonDocument("$each", BsonArray([ "appliances"; "school"; "book" ])))) @>
+
+                test <@ %update = %expected @>
+
+            [<Test>]
+            let ``test typed mongo workflow push with each modifier``() =
+                let clctn : seq<BsonDocument> = Seq.empty |> Seq.cast
+
+                let update =
+                        <@
+                            match
+                                mongo { for x in clctn do
+                                        update
+                                        pushEach (x : Immutable.Item).tags [ "appliances"; "school"; "book" ]
+                                        defer
+                                } with
+                            | MongoOperationResult.Deferred x ->
+                                match x with
+                                | MongoDeferredOperation.Update (_, update) -> update
+                                | _ -> failwith "expected update operation"
+                            | _ -> failwith "expected deferred result"
+                        @>
+
+                let expected = <@ BsonDocument("$push", BsonDocument("tags", BsonDocument("$each", BsonArray([ "appliances"; "school"; "book" ])))) @>
+
+                test <@ %update = %expected @>
+
+            [<Test>]
+            let ``test mongo workflow push with slice modifier``() =
+                let clctn : seq<BsonDocument> = Seq.empty |> Seq.cast
+
+                let update =
+                        <@
+                            match
+                                mongo { for x in clctn do
+                                        update
+                                        pushEach x?tags [ "appliances"; "school"; "book" ]
+                                        slice -5
+                                        defer
+                                } with
+                            | MongoOperationResult.Deferred x ->
+                                match x with
+                                | MongoDeferredOperation.Update (_, update) -> update
+                                | _ -> failwith "expected update operation"
+                            | _ -> failwith "expected deferred result"
+                        @>
+
+                let expected = <@ BsonDocument("$push", BsonDocument("tags", BsonDocument([ BsonElement("$each", BsonArray([ "appliances"; "school"; "book" ]))
+                                                                                            BsonElement("$slice", BsonInt32(-5)) ]))) @>
+
+                test <@ %update = %expected @>
+
+            [<Test>]
+            let ``test typed mongo workflow push with slice modifier``() =
+                let clctn : seq<BsonDocument> = Seq.empty |> Seq.cast
+
+                let update =
+                        <@
+                            match
+                                mongo { for x in clctn do
+                                        update
+                                        pushEach (x : Immutable.Item).tags [ "appliances"; "school"; "book" ]
+                                        slice -5
+                                        defer
+                                } with
+                            | MongoOperationResult.Deferred x ->
+                                match x with
+                                | MongoDeferredOperation.Update (_, update) -> update
+                                | _ -> failwith "expected update operation"
+                            | _ -> failwith "expected deferred result"
+                        @>
+
+                let expected = <@ BsonDocument("$push", BsonDocument("tags", BsonDocument([ BsonElement("$each", BsonArray([ "appliances"; "school"; "book" ]))
+                                                                                            BsonElement("$slice", BsonInt32(-5)) ]))) @>
+
+                test <@ %update = %expected @>
+
         [<TestFixture>]
         module Bitwise =
 
