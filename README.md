@@ -1,15 +1,27 @@
-mongo-fsharp-driver-prototype
-=============================
+MongoDB F# Driver Prototype
+===========================
 
-Make using MongoDB from F# more natural by defining new operators that
-are more idiomatic to the language.
+This is a prototype MongoDB driver for F#. The goal of this driver is to make 
+using MongoDB from F# more natural by defining new operators that are 
+idiomatic to the language.
+
+The API and implementation are currently subject to change at any time. You 
+must not use this driver in production as it is still under development and 
+is in no way supported by 10gen. We absolutely encourage you to experiment 
+with it and provide us feedback on the API, design, and implementation. Bug 
+reports and suggestions for improvements are welcomed, as are pull requests.
+
+Dependencies
+------------
+- F# 3.0
 
 Building
 --------
 
-Currently the [Core .NET driver](https://github.com/mongodb/mongo-csharp-driver/tree/v2.0)
-is unavailable on NuGet, so we have set up the branch as a submodule.
-This is intended to change in the future.
+The F# driver has been developed on top of the new [Core .NET driver](https://github.com/mongodb/mongo-csharp-driver/tree/v2.0). 
+This new *Core .Net driver* is still in development and hence unavailable on 
+NuGet. This branch has been setup as a submodule. This is intended to change 
+in the future.
 
     git submodule update --init
     <compile mongo-csharp-driver>
