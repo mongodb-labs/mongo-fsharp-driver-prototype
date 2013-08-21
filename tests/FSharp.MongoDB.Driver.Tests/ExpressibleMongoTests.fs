@@ -654,8 +654,7 @@ module ExpressibleMongo =
                             match
                                 mongo { for x in clctn do
                                         update
-                                        pushEach x?tags [ "appliances"; "school"; "book" ]
-                                        slice -5
+                                        pushEach x?tags [ "appliances"; "school"; "book" ]; slice -5
                                         defer
                                 } with
                             | MongoOperationResult.Deferred x ->
@@ -679,8 +678,7 @@ module ExpressibleMongo =
                             match
                                 mongo { for x in clctn do
                                         update
-                                        pushEach (x : Immutable.Item).tags [ "appliances"; "school"; "book" ]
-                                        slice -5
+                                        pushEach (x : Immutable.Item).tags [ "appliances"; "school"; "book" ]; slice -5
                                         defer
                                 } with
                             | MongoOperationResult.Deferred x ->
@@ -708,9 +706,7 @@ module ExpressibleMongo =
                             match
                                 mongo { for x in clctn do
                                         update
-                                        pushEach x?sizes [ size1; size2; size3 ]
-                                        sortListBy x?sizes (fun y -> y?width)
-                                        slice -5
+                                        pushEach x?sizes [ size1; size2; size3 ]; sortListBy x?sizes (fun y -> y?width); slice -5
                                         defer
                                 } with
                             | MongoOperationResult.Deferred x ->
@@ -741,9 +737,7 @@ module ExpressibleMongo =
                             match
                                 mongo { for x in clctn do
                                         update
-                                        pushEach (x : Immutable.Item).sizes [ size1; size2; size3 ]
-                                        sortListBy (x : Immutable.Item).sizes (fun y -> y.width)
-                                        slice -5
+                                        pushEach (x : Immutable.Item).sizes [ size1; size2; size3 ]; sortListBy (x : Immutable.Item).sizes (fun y -> y.width); slice -5
                                         defer
                                 } with
                             | MongoOperationResult.Deferred x ->
