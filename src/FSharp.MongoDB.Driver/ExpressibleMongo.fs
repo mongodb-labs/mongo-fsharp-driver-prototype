@@ -89,7 +89,15 @@ module Expression =
                         | GetProperty (var, field) -> (var, field, body)
                         | _ -> failwithf "unrecognized expression\n%A" body
 
-                    let elem =  BsonElement("$push", BsonDocument(field, BsonDocument("$each", BsonArray(values))))
+                    let bsonValues =
+                        values
+                        |> List.map (fun x ->
+                            try
+                                BsonValue.Create x
+                            with
+                               | :? System.ArgumentException -> x.ToBsonDocument(x.GetType()) :> BsonValue)
+
+                    let elem =  BsonElement("$push", BsonDocument(field, BsonDocument("$each", BsonArray(bsonValues))))
                     let res = TransformResult.Update (fakeParser elem, (var, field, body), cont)
                     Some res
 
@@ -106,6 +114,52 @@ module Expression =
 
                     // overwrite, since using last assigned value
                     elem.Value.[0].AsBsonDocument.Set("$slice", BsonInt32(value)) |> ignore // e.g. { $push: { <field>: { $each ... } }
+                    Some res
+
+                | SpecificCall <@ x.SortListAscending @> (_, _, [ PushEach (res); Lambda (_, GetField (_, array)); Lambda (_, GetField (_, field)) ])
+                | SpecificCall <@ x.SortListAscending @> (_, _, [ PushEachWithModifiers (res); Lambda (_, GetField (_, array)); Lambda (_, GetField (_, field)) ]) ->
+                    let elem =
+                        match res with
+                        | TransformResult.Update (f, args, cont) -> args |||> f
+                        | _ -> failwith "expected update transform result"
+
+                    // overwrite, since using last assigned value
+                    elem.Value.[0].AsBsonDocument.Set("$sort", BsonDocument(field, BsonInt32(1))) |> ignore // e.g. { $push: { <field>: { $each ... } }
+                    Some res
+
+                | SpecificCall <@ x.SortListDescending @> (_, _, [ PushEach (res); Lambda (_, GetField (_, array)); Lambda (_, GetField (_, field)) ])
+                | SpecificCall <@ x.SortListDescending @> (_, _, [ PushEachWithModifiers (res); Lambda (_, GetField (_, array)); Lambda (_, GetField (_, field)) ]) ->
+                    let elem =
+                        match res with
+                        | TransformResult.Update (f, args, cont) -> args |||> f
+                        | _ -> failwith "expected update transform result"
+
+                    // overwrite, since using last assigned value
+                    elem.Value.[0].AsBsonDocument.Set("$sort", BsonDocument(field, BsonInt32(-1))) |> ignore // e.g. { $push: { <field>: { $each ... } }
+                    Some res
+
+                | SpecificCall <@ x.ThenSortListAscending @> (_, _, [ PushEachWithModifiers (res); Lambda (_, GetField (_, array)); Lambda (_, GetField (_, field)) ]) ->
+                    let elem =
+                        match res with
+                        | TransformResult.Update (f, args, cont) -> args |||> f
+                        | _ -> failwith "expected update transform result"
+
+                    // append to $sort document
+                    let sort = elem.Value.[0].AsBsonDocument.GetValue("$sort").AsBsonDocument
+                    // overwrite, since using last assigned value
+                    sort.Set(field, BsonInt32(1)) |> ignore
+                    Some res
+
+                | SpecificCall <@ x.ThenSortListDescending @> (_, _, [ PushEachWithModifiers (res); Lambda (_, GetField (_, array)); Lambda (_, GetField (_, field)) ]) ->
+                    let elem =
+                        match res with
+                        | TransformResult.Update (f, args, cont) -> args |||> f
+                        | _ -> failwith "expected update transform result"
+
+                    // append to $sort document
+                    let sort = elem.Value.[0].AsBsonDocument.GetValue("$sort").AsBsonDocument
+                    // overwrite, since using last assigned value
+                    sort.Set(field, BsonInt32(-1)) |> ignore
                     Some res
 
                 | _ -> None
@@ -387,6 +441,22 @@ module Expression =
 
         [<CustomOperation("slice", MaintainsVariableSpace = true)>]
         member __.Slice (source : IMongoEachUpdatable<'a>, value : int) : IMongoEachUpdatable<'a> =
+            invalidOp "not implemented"
+
+        [<CustomOperation("sortListBy", MaintainsVariableSpace = true)>]
+        member __.SortListAscending (source : IMongoEachUpdatable<'a>, [<ProjectionParameter>] array : 'a -> 'b list, field: 'b -> 'c) : IMongoEachUpdatable<'a> =
+            invalidOp "not implemented"
+
+        [<CustomOperation("sortListByDescending", MaintainsVariableSpace = true)>]
+        member __.SortListDescending (source : IMongoEachUpdatable<'a>, [<ProjectionParameter>] array : 'a -> 'b list, field: 'b -> 'c) : IMongoEachUpdatable<'a> =
+            invalidOp "not implemented"
+
+        [<CustomOperation("thenListBy", MaintainsVariableSpace = true)>]
+        member __.ThenSortListAscending (source : IMongoEachUpdatable<'a>, [<ProjectionParameter>] array : 'a -> 'b list, field: 'b -> 'c) : IMongoEachUpdatable<'a> =
+            invalidOp "not implemented"
+
+        [<CustomOperation("thenListByDescending", MaintainsVariableSpace = true)>]
+        member __.ThenSortListDescending (source : IMongoEachUpdatable<'a>, [<ProjectionParameter>] array : 'a -> 'b list, field: 'b -> 'c) : IMongoEachUpdatable<'a> =
             invalidOp "not implemented"
 
         [<CustomOperation("bitAnd", MaintainsVariableSpace = true)>]

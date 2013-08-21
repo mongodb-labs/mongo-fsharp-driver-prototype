@@ -695,6 +695,72 @@ module ExpressibleMongo =
 
                 test <@ %update = %expected @>
 
+            [<Test>]
+            let ``test mongo workflow push with sort modifier``() =
+                let clctn : seq<BsonDocument> = Seq.empty |> Seq.cast
+
+                let size1 = { Immutable.Size.length = 3; Immutable.Size.width = 8; Immutable.Size.height = 1 }
+                let size2 = { Immutable.Size.length = 4; Immutable.Size.width = 7; Immutable.Size.height = 2 }
+                let size3 = { Immutable.Size.length = 5; Immutable.Size.width = 6; Immutable.Size.height = 4 }
+
+                let update =
+                        <@
+                            match
+                                mongo { for x in clctn do
+                                        update
+                                        pushEach x?sizes [ size1; size2; size3 ]
+                                        sortListBy x?sizes (fun y -> y?width)
+                                        slice -5
+                                        defer
+                                } with
+                            | MongoOperationResult.Deferred x ->
+                                match x with
+                                | MongoDeferredOperation.Update (_, update) -> update
+                                | _ -> failwith "expected update operation"
+                            | _ -> failwith "expected deferred result"
+                        @>
+
+                let doc (x : Immutable.Size) = (box x).ToBsonDocument(x.GetType())
+
+                let expected = <@ BsonDocument("$push", BsonDocument("sizes", BsonDocument([ BsonElement("$each", BsonArray([ size1; size2; size3 ] |> List.map doc))
+                                                                                             BsonElement("$sort", BsonDocument("width", BsonInt32(1)))
+                                                                                             BsonElement("$slice", BsonInt32(-5)) ]))) @>
+
+                test <@ %update = %expected @>
+
+            [<Test>]
+            let ``test typed mongo workflow push with sort modifier``() =
+                let clctn : seq<Immutable.Item> = Seq.empty |> Seq.cast
+
+                let size1 = { Immutable.Size.length = 3; Immutable.Size.width = 8; Immutable.Size.height = 1 }
+                let size2 = { Immutable.Size.length = 4; Immutable.Size.width = 7; Immutable.Size.height = 2 }
+                let size3 = { Immutable.Size.length = 5; Immutable.Size.width = 6; Immutable.Size.height = 4 }
+
+                let update =
+                        <@
+                            match
+                                mongo { for x in clctn do
+                                        update
+                                        pushEach (x : Immutable.Item).sizes [ size1; size2; size3 ]
+                                        sortListBy (x : Immutable.Item).sizes (fun y -> y.width)
+                                        slice -5
+                                        defer
+                                } with
+                            | MongoOperationResult.Deferred x ->
+                                match x with
+                                | MongoDeferredOperation.Update (_, update) -> update
+                                | _ -> failwith "expected update operation"
+                            | _ -> failwith "expected deferred result"
+                        @>
+
+                let doc (x : Immutable.Size) = (box x).ToBsonDocument(x.GetType())
+
+                let expected = <@ BsonDocument("$push", BsonDocument("sizes", BsonDocument([ BsonElement("$each", BsonArray([ size1; size2; size3 ] |> List.map doc))
+                                                                                             BsonElement("$sort", BsonDocument("width", BsonInt32(1)))
+                                                                                             BsonElement("$slice", BsonInt32(-5)) ]))) @>
+
+                test <@ %update = %expected @>
+
         [<TestFixture>]
         module Bitwise =
 
