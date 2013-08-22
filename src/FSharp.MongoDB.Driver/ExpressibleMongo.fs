@@ -26,14 +26,16 @@ module Expression =
         inherit seq<'a>
 
     [<RequireQualifiedAccess>]
-    type private TransformResult = // (fun * args * cont)
-       | Query of (Var -> Expr -> BsonElement) * (Var * Expr) * Expr
-       | Update of (Var -> string -> Expr -> BsonElement) * (Var * string * Expr) * Expr
+    type private TransformResult =
+       | For of Expr // expr, since `cont` is unnecessary here
+       | Query of (Var -> Expr -> BsonElement) * (Var * Expr) * Expr // (fun * args * cont)
+       | Update of (Var -> string -> Expr -> BsonElement) * (Var * string * Expr) * Expr // (fun * args * cont)
 
     [<RequireQualifiedAccess>]
-    type private TraverseResult = // (fun * args)
-       | Query of (Var -> Expr -> BsonElement) * (Var * Expr)
-       | Update of (Var -> string -> Expr -> BsonElement) * (Var * string * Expr)
+    type private TraverseResult =
+       | For of Expr // expr
+       | Query of (Var -> Expr -> BsonElement) * (Var * Expr) // (fun * args)
+       | Update of (Var -> string -> Expr -> BsonElement) * (Var * string * Expr) // (fun * args)
 
     type MongoDeferredOperation =
        | Query of BsonDocument
@@ -165,12 +167,20 @@ module Expression =
                 | _ -> None
 
             match expr with
+            | SpecificCall <@ x.For @> (_, _, [ SpecificCall <@ x.Source @> (_, _, [ value ]); _ ]) ->
+                let res = TransformResult.For (value)
+                Some res
+
             // Query operations
             | SpecificCall <@ x.Where @> (_, _, [ cont; Lambda (var, body) ]) ->
                 let res = TransformResult.Query (queryParser, (var, body), cont)
                 Some res
 
             // Update operations
+
+            // TODO: need specific call for MongoBuilder.Update
+            //       want to ignore the result value, but still have continue on query portion
+
             | SpecificCall <@ x.Inc @> (_, _, [ cont; Lambda (_, body); Int32 (value) ]) ->
                 let (var, field, body) =
                     match body with
@@ -321,6 +331,10 @@ module Expression =
                 match transform builder expr with
                 | Some trans ->
                     match trans with
+                    | TransformResult.For (expr) ->
+                        let x = TraverseResult.For (expr)
+                        x :: res
+
                     | TransformResult.Query (f, args, cont) ->
                         let x = TraverseResult.Query (f, args)
                         traverse builder cont (x :: res)
@@ -329,7 +343,7 @@ module Expression =
                         let x = TraverseResult.Update (f, args)
                         traverse builder cont (x :: res)
 
-                | None -> res
+                | None -> res // REVIEW: raise an exception? return None?
 
             traverse x expr []
 
@@ -345,6 +359,7 @@ module Expression =
 
         member x.Run (expr : Expr<#seq<'a>>) : MongoOperationResult<'a> =
 
+            let collection : Scope<'a> option ref = ref None
             let isUpdate = ref false
 
             let queryDoc = BsonDocument()
@@ -354,6 +369,20 @@ module Expression =
                 traverse x expr
                 |> List.iter (fun x ->
                     match x with
+                    | TraverseResult.For (expr) ->
+                        match expr with
+                        | PropertyGet (instance, prop, args) ->
+                            collection :=
+                                if prop.PropertyType = typeof<Scope<'a>> then
+                                    Some (unbox (prop.GetValue(instance)))
+                                elif prop.PropertyType = typeof<IMongoCollection<'a>> then
+                                    let clctn : IMongoCollection<'a> = unbox (prop.GetValue(instance))
+                                    Some (clctn.Find())
+                                else
+                                    None
+
+                        | _ -> ()
+
                     | TraverseResult.Query (f, x) ->
                         let elem = x ||> f
                         queryDoc.Add elem |> ignore
@@ -377,7 +406,21 @@ module Expression =
 
                 MongoOperationResult.Deferred res
 
-            | _ -> invalidOp "not implemented yet"
+            | _ ->
+                prepareDocs expr
+
+                if !isUpdate then // dereference
+                    match !collection with
+                    | Some x ->
+                        let res = x |> Scope.update updateDoc
+                        MongoOperationResult.Update res
+
+                    | None -> failwith "not given a scope"
+
+                else
+                    match !collection with
+                    | Some x -> MongoOperationResult.Query x
+                    | None -> failwith "not given a scope"
 
         [<CustomOperation("defer")>]
         member __.Defer (source : #seq<'a>) : IMongoDeferrable<'a> =
