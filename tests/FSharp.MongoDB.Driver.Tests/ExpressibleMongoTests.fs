@@ -71,7 +71,7 @@ module ExpressibleMongo =
                     <@
                         match
                             mongo { for x in clctn do
-                                    where ((x : Immutable.Item).tags |> Query.all [ "appliances"; "school"; "book" ])
+                                    where (x.tags |> Query.all [ "appliances"; "school"; "book" ])
                                     defer
                             } with
                         | MongoOperationResult.Deferred x ->
@@ -122,7 +122,7 @@ module ExpressibleMongo =
                         match
                             mongo { for x in clctn do
                                     update
-                                    inc (x : Immutable.Item).qty 1
+                                    inc x.qty 1
                                     defer
                             } with
                         | MongoOperationResult.Deferred x ->
@@ -168,7 +168,7 @@ module ExpressibleMongo =
                         match
                             mongo { for x in clctn do
                                     update
-                                    dec (x : Immutable.Item).qty 2
+                                    dec x.qty 2
                                     defer
                             } with
                         | MongoOperationResult.Deferred x ->
@@ -214,7 +214,7 @@ module ExpressibleMongo =
                         match
                             mongo { for x in clctn do
                                     update
-                                    set (x : Immutable.Item).qty 20
+                                    set x.qty 20
                                     defer
                             } with
                         | MongoOperationResult.Deferred x ->
@@ -260,7 +260,7 @@ module ExpressibleMongo =
                         match
                             mongo { for x in clctn do
                                     update
-                                    unset (x : Immutable.Item).option
+                                    unset x.option
                                     defer
                             } with
                         | MongoOperationResult.Deferred x ->
@@ -309,7 +309,7 @@ module ExpressibleMongo =
                             match
                                 mongo { for x in clctn do
                                         update
-                                        addToSet (x : Immutable.Item).tags "toaster"
+                                        addToSet x.tags "toaster"
                                         defer
                                 } with
                             | MongoOperationResult.Deferred x ->
@@ -355,7 +355,7 @@ module ExpressibleMongo =
                             match
                                 mongo { for x in clctn do
                                         update
-                                        popLeft (x : Immutable.Item).sizes
+                                        popLeft x.sizes
                                         defer
                                 } with
                             | MongoOperationResult.Deferred x ->
@@ -401,7 +401,7 @@ module ExpressibleMongo =
                             match
                                 mongo { for x in clctn do
                                         update
-                                        popRight (x : Immutable.Item).sizes
+                                        popRight x.sizes
                                         defer
                                 } with
                             | MongoOperationResult.Deferred x ->
@@ -447,7 +447,7 @@ module ExpressibleMongo =
                             match
                                 mongo { for x in clctn do
                                         update
-                                        pull (x : Immutable.Item).sizes (fun y -> y.height = 75)
+                                        pull x.sizes (fun y -> y.height = 75)
                                         defer
                                 } with
                             | MongoOperationResult.Deferred x ->
@@ -493,7 +493,7 @@ module ExpressibleMongo =
                             match
                                 mongo { for x in clctn do
                                         update
-                                        pullAll (x : Immutable.Item).tags [ "appliances"; "school"; "book" ]
+                                        pullAll x.tags [ "appliances"; "school"; "book" ]
                                         defer
                                 } with
                             | MongoOperationResult.Deferred x ->
@@ -539,7 +539,7 @@ module ExpressibleMongo =
                             match
                                 mongo { for x in clctn do
                                         update
-                                        push (x : Immutable.Item).tags "toaster"
+                                        push x.tags "toaster"
                                         defer
                                 } with
                             | MongoOperationResult.Deferred x ->
@@ -578,14 +578,14 @@ module ExpressibleMongo =
 
             [<Test>]
             let ``test typed mongo workflow add to set with each modifier``() =
-                let clctn : seq<BsonDocument> = Seq.empty |> Seq.cast
+                let clctn : seq<Immutable.Item> = Seq.empty |> Seq.cast
 
                 let update =
                         <@
                             match
                                 mongo { for x in clctn do
                                         update
-                                        addToSetEach (x : Immutable.Item).tags [ "appliances"; "school"; "book" ]
+                                        addToSetEach x.tags [ "appliances"; "school"; "book" ]
                                         defer
                                 } with
                             | MongoOperationResult.Deferred x ->
@@ -624,14 +624,14 @@ module ExpressibleMongo =
 
             [<Test>]
             let ``test typed mongo workflow push with each modifier``() =
-                let clctn : seq<BsonDocument> = Seq.empty |> Seq.cast
+                let clctn : seq<Immutable.Item> = Seq.empty |> Seq.cast
 
                 let update =
                         <@
                             match
                                 mongo { for x in clctn do
                                         update
-                                        pushEach (x : Immutable.Item).tags [ "appliances"; "school"; "book" ]
+                                        pushEach x.tags [ "appliances"; "school"; "book" ]
                                         defer
                                 } with
                             | MongoOperationResult.Deferred x ->
@@ -671,14 +671,14 @@ module ExpressibleMongo =
 
             [<Test>]
             let ``test typed mongo workflow push with slice modifier``() =
-                let clctn : seq<BsonDocument> = Seq.empty |> Seq.cast
+                let clctn : seq<Immutable.Item> = Seq.empty |> Seq.cast
 
                 let update =
                         <@
                             match
                                 mongo { for x in clctn do
                                         update
-                                        pushEach (x : Immutable.Item).tags [ "appliances"; "school"; "book" ]; slice -5
+                                        pushEach x.tags [ "appliances"; "school"; "book" ]; slice -5
                                         defer
                                 } with
                             | MongoOperationResult.Deferred x ->
@@ -737,7 +737,7 @@ module ExpressibleMongo =
                             match
                                 mongo { for x in clctn do
                                         update
-                                        pushEach (x : Immutable.Item).sizes [ size1; size2; size3 ]; sortListBy (x : Immutable.Item).sizes (fun y -> y.width); slice -5
+                                        pushEach x.sizes [ size1; size2; size3 ]; sortListBy x.sizes (fun y -> y.width); slice -5
                                         defer
                                 } with
                             | MongoOperationResult.Deferred x ->
@@ -790,7 +790,7 @@ module ExpressibleMongo =
                             match
                                 mongo { for x in clctn do
                                         update
-                                        bitAnd (x : Immutable.Item).qty 5
+                                        bitAnd x.qty 5
                                         defer
                                 } with
                             | MongoOperationResult.Deferred x ->
@@ -836,7 +836,7 @@ module ExpressibleMongo =
                             match
                                 mongo { for x in clctn do
                                         update
-                                        bitOr (x : Immutable.Item).qty 5
+                                        bitOr x.qty 5
                                         defer
                                 } with
                             | MongoOperationResult.Deferred x ->

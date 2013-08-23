@@ -352,7 +352,7 @@ module Expression =
 
         member __.Source (x : #seq<'a>) : IMongoQueryable<'a> = invalidOp "not implemented"
 
-        member __.For (source : IMongoQueryable<'a>, f : 'a -> IMongoQueryable<'a>) = invalidOp "not implemented"
+        member __.For (source : IMongoQueryable<'a>, f : 'a -> IMongoQueryable<'a>) : IMongoQueryable<'a> = invalidOp "not implemented"
 
         member __.Zero () : IMongoQueryable<'a> = invalidOp "not implemented"
 
@@ -450,7 +450,7 @@ module Expression =
             invalidOp "not implemented"
 
         [<CustomOperation("unset", MaintainsVariableSpace = true)>]
-        member __.Unset (source : #IMongoUpdatable<'a>, [<ProjectionParameter>] field) : IMongoUpdatable<'a> =
+        member __.Unset (source : #IMongoUpdatable<'a>, [<ProjectionParameter>] field : 'a -> 'b option) : IMongoUpdatable<'a> =
             invalidOp "not implemented"
 
         [<CustomOperation("addToSet", MaintainsVariableSpace = true)>]
