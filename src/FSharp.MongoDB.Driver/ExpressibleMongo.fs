@@ -30,6 +30,7 @@ module Expression =
        | For of Expr // expr, since `cont` is unnecessary here
        | Query of (Var -> Expr -> BsonElement) * (Var * Expr) * Expr // (fun * args * cont)
        | Update of (Var -> string -> Expr -> BsonElement) * (Var * string * Expr) * Expr // (fun * args * cont)
+       | Pass of Expr // cont
 
     [<RequireQualifiedAccess>]
     type private TraverseResult =
@@ -177,9 +178,9 @@ module Expression =
                 Some res
 
             // Update operations
-
-            // TODO: need specific call for MongoBuilder.Update
-            //       want to ignore the result value, but still have continue on query portion
+            | SpecificCall <@ x.Update @> (_, _, [ cont ]) ->
+                let res = TransformResult.Pass cont
+                Some res
 
             | SpecificCall <@ x.Inc @> (_, _, [ cont; Lambda (_, body); Int32 (value) ]) ->
                 let (var, field, body) =
@@ -342,6 +343,8 @@ module Expression =
                     | TransformResult.Update (f, args, cont) ->
                         let x = TraverseResult.Update (f, args)
                         traverse builder cont (x :: res)
+
+                    | TransformResult.Pass (cont) -> traverse builder cont res
 
                 | None -> res // REVIEW: raise an exception? return None?
 
