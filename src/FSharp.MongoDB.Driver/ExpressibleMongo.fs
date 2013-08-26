@@ -373,18 +373,19 @@ module Expression =
                 |> List.iter (fun x ->
                     match x with
                     | TraverseResult.For (expr) ->
-                        match expr with
-                        | PropertyGet (instance, prop, args) ->
-                            collection :=
-                                if prop.PropertyType = typeof<Scope<'a>> then
-                                    Some (unbox (prop.GetValue(instance)))
-                                elif prop.PropertyType = typeof<IMongoCollection<'a>> then
-                                    let clctn : IMongoCollection<'a> = unbox (prop.GetValue(instance))
-                                    Some (clctn.Find())
-                                else
-                                    None
+                        let obj =
+                            match expr with
+                            | Value (obj, _) -> Some obj
+                            | PropertyGet (_, prop, _) -> Some (prop.GetValue null)
+                            | _ -> None
 
-                        | _ -> ()
+                        collection :=
+                            match obj with
+                            | Some (:? Scope<'a> as x) -> Some x
+                            | Some (:? IMongoCollection<'a> as x) -> Some (x.Find())
+
+                            | Some _
+                            | None -> None
 
                     | TraverseResult.Query (f, x) ->
                         let elem = x ||> f
