@@ -1,9 +1,12 @@
 ﻿namespace FSharp.MongoDB.Driver.Tests
 
+open System.Net
+
 open MongoDB.Bson
 
 open MongoDB.Driver.Core
 open MongoDB.Driver.Core.Protocol
+open MongoDB.Driver.Core.Protocol.Messages
 
 open NUnit.Framework
 open Swensen.Unquote
@@ -29,8 +32,7 @@ module MongoBackbone =
             backbone.DropCollection db clctn|> ignore
 
         [<Test>]
-        [<ExpectedException("System.ObjectDisposedException")>]
-        let ``fail when iterate through cursor twice``() =
+        let ``succeed when iterate through cursor twice``() =
             let docs = [ BsonDocument([ BsonElement("_id", BsonInt32(11));
                                         BsonElement("item", BsonString("pencil"));
                                         BsonElement("qty", BsonInt32(50));
@@ -56,7 +58,7 @@ module MongoBackbone =
             for _ in [1 .. 2] do for _ in res do ()
 
         [<Test>]
-        [<ExpectedException(typeof<MongoWriteConcernException>)>]
+        [<ExpectedException(typeof<MongoDuplicateKeyException>)>]
         let ``fail when insert duplicate keys``() =
             let id = 11 // make clear that all the documents use the same _id
             let docs = [ BsonDocument([ BsonElement("_id", BsonInt32(id));

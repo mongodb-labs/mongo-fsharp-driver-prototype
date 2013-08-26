@@ -5,11 +5,12 @@ open MongoDB.Bson.Serialization
 
 open MongoDB.Driver.Core
 open MongoDB.Driver.Core.Protocol
+open MongoDB.Driver.Core.Protocol.Messages
 
 [<Interface>]
 type IMongoCollection<'DocType> =
 
-    abstract member Drop : unit -> #CommandResult
+    abstract member Drop : unit -> CommandResult
 
     abstract member Insert : 'DocType -> WriteConcernResult
 

@@ -1,5 +1,7 @@
 namespace FSharp.MongoDB.Driver
 
+open System.Net
+
 [<Interface>]
 type IMongoClient =
     abstract member GetDatabase : string -> IMongoDatabase
