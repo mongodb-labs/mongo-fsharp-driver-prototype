@@ -1,10 +1,5 @@
 namespace FSharp.MongoDB.Driver
 
-open System
-open System.Collections.Generic
-open System.Net
-open System.Threading
-
 open MongoDB.Bson
 open MongoDB.Bson.Serialization
 
@@ -13,7 +8,6 @@ open MongoDB.Driver.Core.Connections
 open MongoDB.Driver.Core.Diagnostics
 open MongoDB.Driver.Core.Events
 open MongoDB.Driver.Core.Operations
-open MongoDB.Driver.Core.Protocol
 open MongoDB.Driver.Core.Protocol.Messages
 open MongoDB.Driver.Core.Sessions
 
@@ -23,28 +17,73 @@ type internal MongoBackbone(settings : Backbone.AllSettings) =
     let traceManager = new TraceManager()
 
     let networkStreamSettings =
-        NetworkStreamFactorySettings(
-            connectTimeout = settings.Stream.ConnectTimeout,
-            readTimeout = settings.Stream.ReadTimeout,
-            writeTimeout = settings.Stream.WriteTimeout,
-            tcpReceiveBufferSize = settings.Stream.TcpReceiveBufferSize,
-            tcpSendBufferSize = settings.Stream.TcpSendBufferSize)
+        NetworkStreamFactorySettings.Create(fun builder ->
+            match settings.Stream.ConnectTimeout with
+            | Some x -> builder.SetConnectTimeout x
+            | None -> ()
+
+            match settings.Stream.ReadTimeout with
+            | Some x -> builder.SetReadTimeout x
+            | None -> ()
+
+            match settings.Stream.WriteTimeout with
+            | Some x -> builder.SetWriteTimeout x
+            | None -> ()
+
+            match settings.Stream.TcpReceiveBufferSize with
+            | Some x -> builder.SetTcpReceiveBufferSize x
+            | None -> ()
+
+            match settings.Stream.TcpSendBufferSize with
+            | Some x -> builder.SetTcpSendBufferSize x
+            | None -> ()
+        )
 
     let connectionPoolSettings =
-        ConnectionPoolSettings(
-            connectionMaxIdleTime = settings.ChannelProvider.ConnectionMaxIdleTime,
-            connectionMaxLifeTime = settings.ChannelProvider.ConnectionMaxLifeTime,
-            maxSize = settings.ChannelProvider.MaxSize,
-            minSize = settings.ChannelProvider.MinSize,
-            sizeMaintenanceFrequency = settings.ChannelProvider.SizeMaintenanceFrequency,
-            maxWaitQueueSize = settings.ChannelProvider.WaitQueueSize)
+        ConnectionPoolSettings.Create(fun builder ->
+            match settings.ConnectionPool.ConnectionMaxIdleTime with
+            | Some x -> builder.SetConnectionMaxIdleTime x
+            | None -> ()
+
+            match settings.ConnectionPool.ConnectionMaxLifeTime with
+            | Some x -> builder.SetConnectionMaxLifeTime x
+            | None -> ()
+
+            match settings.ConnectionPool.MaxSize with
+            | Some x -> builder.SetMaxSize x
+            | None -> ()
+
+            match settings.ConnectionPool.MinSize with
+            | Some x -> builder.SetMinSize x
+            | None -> ()
+
+            match settings.ConnectionPool.SizeMaintenanceFrequency with
+            | Some x -> builder.SetSizeMaintenanceFrequency x
+            | None -> ()
+
+            match settings.ConnectionPool.WaitQueueSize with
+            | Some x -> builder.SetWaitQueueSize x
+            | None -> ()
+        )
 
     let clusterableServerSettings =
-        ClusterableServerSettings(
-            connectRetryFrequency = settings.ClusterableServer.ConnectRetryFrequency,
-            heartbeatFrequency = settings.ClusterableServer.HeartbeatFrequency,
-            maxDocumentSizeDefault = settings.ClusterableServer.MaxDocumentSizeDefault,
-            maxMessageSizeDefault = settings.ClusterableServer.MaxDocumentSizeDefault)
+        ClusterableServerSettings.Create(fun builder ->
+            match settings.ClusterableServer.ConnectRetryFrequency with
+            | Some x -> builder.SetConnectRetryFrequency x
+            | None -> ()
+
+            match settings.ClusterableServer.HeartbeatFrequency with
+            | Some x -> builder.SetHeartbeatFrequency x
+            | None -> ()
+
+            match settings.ClusterableServer.MaxDocumentSizeDefault with
+            | Some x -> builder.SetMaxDocumentSizeDefault x
+            | None -> ()
+
+            match settings.ClusterableServer.MaxMessageSizeDefault with
+            | Some x -> builder.SetMaxMessageSizeDefault x
+            | None -> ()
+        )
 
     let clusterSettings = ClusterSettings.Defaults
 
@@ -64,8 +103,6 @@ type internal MongoBackbone(settings : Backbone.AllSettings) =
     let cluster = clusterFactory.Create(clusterSettings)
 
     do cluster.Initialize()
-
-    member internal x.Cluster = cluster
 
     member internal x.Session = new ClusterSession(cluster)
 

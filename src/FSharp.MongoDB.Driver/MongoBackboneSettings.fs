@@ -5,66 +5,69 @@ open System
 [<RequireQualifiedAccess>]
 module Backbone =
 
+    [<RequireQualifiedAccess>]
     type StreamSettings = {
-        ConnectTimeout : TimeSpan
-        ReadTimeout : TimeSpan
-        TcpReceiveBufferSize : int
-        TcpSendBufferSize : int
-        WriteTimeout : TimeSpan
+        ConnectTimeout : TimeSpan option
+        ReadTimeout : TimeSpan option
+        TcpReceiveBufferSize : int option
+        TcpSendBufferSize : int option
+        WriteTimeout : TimeSpan option
     }
 
-    type ChannelProviderSettings = {
-        ConnectionMaxIdleTime : TimeSpan
-        ConnectionMaxLifeTime : TimeSpan
-        MaxSize : int
-        MinSize : int
-        SizeMaintenanceFrequency : TimeSpan
-        WaitQueueSize : int
+    [<RequireQualifiedAccess>]
+    type ConnectionPoolSettings = {
+        ConnectionMaxIdleTime : TimeSpan option
+        ConnectionMaxLifeTime : TimeSpan option
+        MaxSize : int option
+        MinSize : int option
+        SizeMaintenanceFrequency : TimeSpan option
+        WaitQueueSize : int option
     }
 
+    [<RequireQualifiedAccess>]
     type ClusterableServerSettings = {
-        ConnectRetryFrequency : TimeSpan
-        HeartbeatFrequency : TimeSpan
-        MaxDocumentSizeDefault : int
-        MaxMessageSizeDefault : int
+        ConnectRetryFrequency : TimeSpan option
+        HeartbeatFrequency : TimeSpan option
+        MaxDocumentSizeDefault : int option
+        MaxMessageSizeDefault : int option
     }
 
+    [<RequireQualifiedAccess>]
     type AllSettings = {
         Stream : StreamSettings
-        ChannelProvider : ChannelProviderSettings
+        ConnectionPool : ConnectionPoolSettings
         ClusterableServer : ClusterableServerSettings
     }
 
     [<RequireQualifiedAccess>]
     module DefaultSettings =
-        open System.Threading
 
         let stream = {
-            ConnectTimeout = TimeSpan.FromSeconds 30.0
-            ReadTimeout = Timeout.InfiniteTimeSpan // OS default
-            TcpReceiveBufferSize = 64 * 1024 // 64KiB (note: larger than 2MiB fails on Mac using Mono)
-            TcpSendBufferSize = 64 * 1024 // 64KiB (TODO: what is the optimum value for the buffers?)
-            WriteTimeout = Timeout.InfiniteTimeSpan // OS default
+            StreamSettings.ConnectTimeout = None
+            StreamSettings.ReadTimeout = None
+            StreamSettings.TcpReceiveBufferSize = None
+            StreamSettings.TcpSendBufferSize = None
+            StreamSettings.WriteTimeout = None
         }
 
-        let channelProvider = {
-            ConnectionMaxIdleTime = TimeSpan.FromMinutes 10.0
-            ConnectionMaxLifeTime = TimeSpan.FromMinutes 30.0
-            MaxSize = 100
-            MinSize = 0
-            SizeMaintenanceFrequency = TimeSpan.FromMinutes 1.0
-            WaitQueueSize = 500 // MaxSize * 5
+        let connectionPool = {
+            ConnectionPoolSettings.ConnectionMaxIdleTime = None
+            ConnectionPoolSettings.ConnectionMaxLifeTime = None
+            ConnectionPoolSettings.MaxSize = None
+            ConnectionPoolSettings.MinSize = None
+            ConnectionPoolSettings.SizeMaintenanceFrequency = None
+            ConnectionPoolSettings.WaitQueueSize = None
         }
 
         let clusterableServer = {
-            ConnectRetryFrequency = TimeSpan.FromSeconds 2.0
-            HeartbeatFrequency = TimeSpan.FromSeconds 10.0
-            MaxDocumentSizeDefault = 4 * 1024 * 1024
-            MaxMessageSizeDefault = 16000000 // 16MB (not 16 MiB!)
+            ClusterableServerSettings.ConnectRetryFrequency = None
+            ClusterableServerSettings.HeartbeatFrequency = None
+            ClusterableServerSettings.MaxDocumentSizeDefault = None
+            ClusterableServerSettings.MaxMessageSizeDefault = None
         }
 
         let all = {
-            Stream = stream
-            ChannelProvider = channelProvider
-            ClusterableServer = clusterableServer
+            AllSettings.Stream = stream
+            AllSettings.ConnectionPool = connectionPool
+            AllSettings.ClusterableServer = clusterableServer
         }
