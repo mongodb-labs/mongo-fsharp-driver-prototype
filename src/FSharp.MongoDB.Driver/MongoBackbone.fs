@@ -14,10 +14,9 @@ open MongoDB.Driver.Core.Sessions
 type internal MongoBackbone(settings : Backbone.AllSettings) =
 
     let eventPublisher = EventPublisher()
-    let traceManager = new TraceManager()
 
     let networkStreamSettings =
-        NetworkStreamFactorySettings.Create(fun builder ->
+        NetworkStreamSettings.Create(fun builder ->
             match settings.Stream.ConnectTimeout with
             | Some x -> builder.SetConnectTimeout x
             | None -> ()
@@ -38,6 +37,8 @@ type internal MongoBackbone(settings : Backbone.AllSettings) =
             | Some x -> builder.SetTcpSendBufferSize x
             | None -> ()
         )
+
+    let streamConnectionSettings = StreamConnectionSettings.Defaults
 
     let connectionPoolSettings =
         ConnectionPoolSettings.Create(fun builder ->
@@ -85,8 +86,6 @@ type internal MongoBackbone(settings : Backbone.AllSettings) =
             | None -> ()
         )
 
-    let clusterSettings = ClusterSettings.Defaults
-
     let clusterSettings = ClusterSettings.Create(fun builder ->
         builder.AddHosts(settings.Hosts)
 
@@ -96,16 +95,17 @@ type internal MongoBackbone(settings : Backbone.AllSettings) =
     )
 
     let streamFactory = NetworkStreamFactory(networkStreamSettings, DnsCache())
-    let connFactory = StreamConnectionFactory(streamFactory, eventPublisher, traceManager)
+    let connFactory = StreamConnectionFactory(streamConnectionSettings, streamFactory,
+                                              eventPublisher)
 
     let connPoolFactory = ConnectionPoolFactory(connectionPoolSettings, connFactory,
-                                                eventPublisher, traceManager)
+                                                eventPublisher)
 
     let channelFactory = ConnectionPoolChannelProviderFactory(connPoolFactory,
-                                                              eventPublisher, traceManager)
+                                                              eventPublisher)
 
     let nodeFactory = ClusterableServerFactory(clusterableServerSettings, channelFactory,
-                                               connFactory, eventPublisher, traceManager)
+                                               connFactory, eventPublisher)
 
     let clusterFactory = ClusterFactory(nodeFactory)
     let cluster = clusterFactory.Create(clusterSettings)
