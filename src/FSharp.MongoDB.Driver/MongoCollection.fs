@@ -39,7 +39,7 @@ type MongoCollection<'DocType> =
             let options = Scope.DefaultOptions.writeOptions
 
             let flags = InsertFlags.None
-            let settings = { Operation.DefaultSettings.insert with WriteConcern = options.WriteConcern }
+            let settings = { Operation.DefaultSettings.insert with WriteConcern = Some options.WriteConcern }
 
             x.backbone.Insert x.db x.clctn doc flags settings
 
@@ -84,13 +84,13 @@ type MongoCollection<'DocType> =
                 let update = doc
 
                 let flags = UpdateFlags.Upsert
-                let settings = { Operation.DefaultSettings.update with WriteConcern = options.WriteConcern }
+                let settings = { Operation.DefaultSettings.update with WriteConcern = Some options.WriteConcern }
 
                 x.backbone.Update x.db x.clctn query update flags settings
             else                                                           // document does not have an id
                 // Perform an insert
                 let flags = InsertFlags.None
-                let settings = { Operation.DefaultSettings.insert with WriteConcern = options.WriteConcern
-                                                                       AssignIdOnInsert = true}
+                let settings = { Operation.DefaultSettings.insert with WriteConcern = Some options.WriteConcern
+                                                                       AssignIdOnInsert = Some true}
 
                 x.backbone.Insert x.db x.clctn doc flags settings

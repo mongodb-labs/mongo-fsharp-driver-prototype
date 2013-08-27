@@ -114,8 +114,27 @@ module internal Operations =
                         Documents = docs,
                         DocumentType = typeof<'DocType>,
                         Flags = flags,
-                        AssignIdOnInsert = settings.AssignIdOnInsert,
                         Session = x.Session)
+
+                match settings.ReaderSettings with
+                | Some x -> insertOp.ReaderSettings <- x
+                | None -> ()
+
+                match settings.WriterSettings with
+                | Some x -> insertOp.WriterSettings <- x
+                | None -> ()
+
+                match settings.WriteConcern with
+                | Some x -> insertOp.WriteConcern <- x
+                | None -> ()
+
+                match settings.AssignIdOnInsert with
+                | Some x -> insertOp.AssignIdOnInsert <- x
+                | None -> ()
+
+                match settings.CheckInsertDocuments with
+                | Some x -> insertOp.CheckInsertDocuments <- x
+                | None -> ()
 
                 insertOp.Execute()
 
@@ -140,6 +159,18 @@ module internal Operations =
                         Flags = flags,
                         Session = x.Session)
 
+                match settings.ReaderSettings with
+                | Some x -> queryOp.ReaderSettings <- x
+                | None -> ()
+
+                match settings.WriterSettings with
+                | Some x -> queryOp.WriterSettings <- x
+                | None -> ()
+
+                match settings.BatchSize with
+                | Some x -> queryOp.BatchSize <- x
+                | None -> ()
+
                 queryOp :> seq<'DocType>
 
             member x.Update db clctn query update flags (settings : Operation.UpdateSettings) =
@@ -154,6 +185,22 @@ module internal Operations =
                         Flags = flags,
                         Session = x.Session)
 
+                match settings.ReaderSettings with
+                | Some x -> updateOp.ReaderSettings <- x
+                | None -> ()
+
+                match settings.WriterSettings with
+                | Some x -> updateOp.WriterSettings <- x
+                | None -> ()
+
+                match settings.WriteConcern with
+                | Some x -> updateOp.WriteConcern <- x
+                | None -> ()
+
+                match settings.CheckUpdateDocument with
+                | Some x -> updateOp.CheckUpdateDocument <- x
+                | None -> ()
+
                 updateOp.Execute()
 
             member x.Remove db clctn query flags (settings : Operation.RemoveSettings) =
@@ -166,5 +213,17 @@ module internal Operations =
                         Query = query,
                         Flags = flags,
                         Session = x.Session)
+
+                match settings.ReaderSettings with
+                | Some x -> removeOp.ReaderSettings <- x
+                | None -> ()
+
+                match settings.WriterSettings with
+                | Some x -> removeOp.WriterSettings <- x
+                | None -> ()
+
+                match settings.WriteConcern with
+                | Some x -> removeOp.WriteConcern <- x
+                | None -> ()
 
                 removeOp.Execute()

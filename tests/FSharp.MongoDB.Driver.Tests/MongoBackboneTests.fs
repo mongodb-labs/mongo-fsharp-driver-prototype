@@ -73,7 +73,7 @@ module MongoBackbone =
                                         BsonElement("qty", BsonInt32(25)) ]) ]
 
             let insertFlags = InsertFlags.None
-            let insertSettings = { Operation.DefaultSettings.insert with WriteConcern = WriteConcern.Acknowledged }
+            let insertSettings = { Operation.DefaultSettings.insert with WriteConcern = Some WriteConcern.Acknowledged }
 
             try
                 backbone.BulkInsert db clctn docs insertFlags insertSettings |> ignore
@@ -98,7 +98,7 @@ module MongoBackbone =
             let update = BsonDocument("qty", BsonDocument("$inc", BsonInt32(-1))) // careful here
 
             let updateFlags = UpdateFlags.None
-            let updateSettings = { Operation.DefaultSettings.update with CheckUpdateDocument = true }
+            let updateSettings = { Operation.DefaultSettings.update with CheckUpdateDocument = Some true }
 
             try
                 backbone.Update db clctn updateQuery update updateFlags updateSettings |> ignore
@@ -123,7 +123,7 @@ module MongoBackbone =
                                      BsonElement("qty", BsonInt32(15)) ])
 
             let insertFlags = InsertFlags.None
-            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = false }
+            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = Some false }
 
             backbone.Insert db clctn doc insertFlags insertSettings |> ignore
 
@@ -225,7 +225,7 @@ module MongoBackbone =
                                      BsonElement("qty", BsonInt32(15)) ])
 
             let insertFlags = InsertFlags.None
-            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = false }
+            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = Some false }
 
             backbone.Insert db clctn doc insertFlags insertSettings |> ignore
 
@@ -346,7 +346,7 @@ module MongoBackbone =
                                         BsonElement("qty", BsonInt32(25)) ]) ]
 
             let insertFlags = InsertFlags.None
-            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = true }
+            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = Some true }
 
             backbone.BulkInsert db clctn docs insertFlags insertSettings |> ignore
 
@@ -386,7 +386,7 @@ module MongoBackbone =
                                         BsonElement("qty", BsonInt32(25)) ]) ]
 
             let insertFlags = InsertFlags.None
-            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = true }
+            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = Some true }
 
             backbone.BulkInsert db clctn docs insertFlags insertSettings |> ignore
 
@@ -429,7 +429,7 @@ module MongoBackbone =
                                         BsonElement("qty", BsonInt32(25)) ]) ]
 
             let insertFlags = InsertFlags.None
-            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = true }
+            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = Some true }
 
             backbone.BulkInsert db clctn docs insertFlags insertSettings |> ignore
 

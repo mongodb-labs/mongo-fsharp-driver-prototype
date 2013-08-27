@@ -76,7 +76,7 @@ module Fluent =
             if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
 
             let flags = DeleteFlags.None
-            let settings = { Operation.DefaultSettings.remove with WriteConcern = scope.WriteOptions.WriteConcern }
+            let settings = { Operation.DefaultSettings.remove with WriteConcern = Some scope.WriteOptions.WriteConcern }
 
             backbone.Remove db clctn query flags settings
 
@@ -97,7 +97,7 @@ module Fluent =
             if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
 
             let flags = DeleteFlags.Single
-            let settings = { Operation.DefaultSettings.remove with WriteConcern = scope.WriteOptions.WriteConcern }
+            let settings = { Operation.DefaultSettings.remove with WriteConcern = Some scope.WriteOptions.WriteConcern }
 
             backbone.Remove db clctn query flags settings
 
@@ -119,8 +119,8 @@ module Fluent =
             if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
 
             let flags = UpdateFlags.Multi
-            let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = true
-                                                                   WriteConcern = scope.WriteOptions.WriteConcern }
+            let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = Some true
+                                                                   WriteConcern = Some scope.WriteOptions.WriteConcern }
 
             backbone.Update db clctn query update flags settings
 
@@ -140,8 +140,8 @@ module Fluent =
             let query = makeQueryDoc scope.Query None scope.QueryOptions
 
             let flags = UpdateFlags.None
-            let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = true
-                                                                   WriteConcern = scope.WriteOptions.WriteConcern }
+            let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = Some true
+                                                                   WriteConcern = Some scope.WriteOptions.WriteConcern }
 
             backbone.Update db clctn query update flags settings
 
@@ -163,8 +163,8 @@ module Fluent =
             if scope.WriteOptions.Isolated then query.Add("$isolated", BsonInt32(1)) |> ignore
 
             let flags = UpdateFlags.Multi
-            let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = false
-                                                                   WriteConcern = scope.WriteOptions.WriteConcern }
+            let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = Some false
+                                                                   WriteConcern = Some scope.WriteOptions.WriteConcern }
 
             backbone.Update db clctn query update flags settings
 
@@ -184,8 +184,8 @@ module Fluent =
             let query = makeQueryDoc scope.Query None scope.QueryOptions
 
             let flags = UpdateFlags.None
-            let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = false
-                                                                   WriteConcern = scope.WriteOptions.WriteConcern }
+            let settings = { Operation.DefaultSettings.update with CheckUpdateDocument = Some false
+                                                                   WriteConcern = Some scope.WriteOptions.WriteConcern }
 
             backbone.Update db clctn query update flags settings
 

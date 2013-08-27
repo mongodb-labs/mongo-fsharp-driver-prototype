@@ -7,69 +7,74 @@ open MongoDB.Driver.Core
 [<RequireQualifiedAccess>]
 module Operation =
 
+    [<RequireQualifiedAccess>]
     type CommandSettings = {
-        ReaderSettings : BsonBinaryReaderSettings
-        WriterSettings : BsonBinaryWriterSettings
+        ReaderSettings : BsonBinaryReaderSettings option
+        WriterSettings : BsonBinaryWriterSettings option
     }
 
+    [<RequireQualifiedAccess>]
     type InsertSettings = {
-        ReaderSettings : BsonBinaryReaderSettings
-        WriterSettings : BsonBinaryWriterSettings
-        WriteConcern : WriteConcern
-        AssignIdOnInsert : bool
-        CheckInsertDocuments : bool
+        ReaderSettings : BsonBinaryReaderSettings option
+        WriterSettings : BsonBinaryWriterSettings option
+        WriteConcern : WriteConcern option
+        AssignIdOnInsert : bool option
+        CheckInsertDocuments : bool option
     }
 
+    [<RequireQualifiedAccess>]
     type QuerySettings = {
-        ReaderSettings : BsonBinaryReaderSettings
-        WriterSettings : BsonBinaryWriterSettings
-        BatchSize : int
+        ReaderSettings : BsonBinaryReaderSettings option
+        WriterSettings : BsonBinaryWriterSettings option
+        BatchSize : int option
     }
 
+    [<RequireQualifiedAccess>]
     type UpdateSettings = {
-        ReaderSettings : BsonBinaryReaderSettings
-        WriterSettings : BsonBinaryWriterSettings
-        WriteConcern : WriteConcern
-        CheckUpdateDocument : bool
+        ReaderSettings : BsonBinaryReaderSettings option
+        WriterSettings : BsonBinaryWriterSettings option
+        WriteConcern : WriteConcern option
+        CheckUpdateDocument : bool option
     }
 
+    [<RequireQualifiedAccess>]
     type RemoveSettings = {
-        ReaderSettings : BsonBinaryReaderSettings
-        WriterSettings : BsonBinaryWriterSettings
-        WriteConcern : WriteConcern
+        ReaderSettings : BsonBinaryReaderSettings option
+        WriterSettings : BsonBinaryWriterSettings option
+        WriteConcern : WriteConcern option
     }
 
     [<RequireQualifiedAccess>]
     module DefaultSettings =
 
         let command = {
-            CommandSettings.ReaderSettings = BsonBinaryReaderSettings.Defaults
-            WriterSettings = BsonBinaryWriterSettings.Defaults
+            CommandSettings.ReaderSettings = None
+            CommandSettings.WriterSettings = None
         }
 
         let insert = {
-            ReaderSettings = BsonBinaryReaderSettings.Defaults
-            WriterSettings = BsonBinaryWriterSettings.Defaults
-            WriteConcern = WriteConcern.Acknowledged
-            AssignIdOnInsert = true
-            CheckInsertDocuments = true
+            InsertSettings.ReaderSettings = None
+            InsertSettings.WriterSettings = None
+            InsertSettings.WriteConcern = None
+            InsertSettings.AssignIdOnInsert = None
+            InsertSettings.CheckInsertDocuments = None
         }
 
         let query = {
-            ReaderSettings = BsonBinaryReaderSettings.Defaults
-            WriterSettings = BsonBinaryWriterSettings.Defaults
-            BatchSize = 100
+            QuerySettings.ReaderSettings = None
+            QuerySettings.WriterSettings = None
+            QuerySettings.BatchSize = None
         }
 
         let update = {
-            ReaderSettings = BsonBinaryReaderSettings.Defaults
-            WriterSettings = BsonBinaryWriterSettings.Defaults
-            WriteConcern = WriteConcern.Acknowledged
-            CheckUpdateDocument = true
+            UpdateSettings.ReaderSettings = None
+            UpdateSettings.WriterSettings = None
+            UpdateSettings.WriteConcern = None
+            UpdateSettings.CheckUpdateDocument = None
         }
 
         let remove = {
-            ReaderSettings = BsonBinaryReaderSettings.Defaults
-            WriterSettings = BsonBinaryWriterSettings.Defaults
-            WriteConcern = WriteConcern.Acknowledged
+            RemoveSettings.ReaderSettings = None
+            RemoveSettings.WriterSettings = None
+            RemoveSettings.WriteConcern = None
         }
