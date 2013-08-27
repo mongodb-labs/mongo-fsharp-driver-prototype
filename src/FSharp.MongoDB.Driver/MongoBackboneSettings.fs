@@ -1,6 +1,7 @@
 namespace FSharp.MongoDB.Driver
 
 open System
+open System.Net
 
 [<RequireQualifiedAccess>]
 module Backbone =
@@ -37,6 +38,8 @@ module Backbone =
         Stream : StreamSettings
         ConnectionPool : ConnectionPoolSettings
         ClusterableServer : ClusterableServerSettings
+        Hosts : DnsEndPoint list
+        ReplicaSet : string option
     }
 
     [<RequireQualifiedAccess>]
@@ -70,4 +73,6 @@ module Backbone =
             AllSettings.Stream = stream
             AllSettings.ConnectionPool = connectionPool
             AllSettings.ClusterableServer = clusterableServer
+            AllSettings.Hosts = [ DnsEndPoint("localhost", 27017) ]
+            AllSettings.ReplicaSet = None
         }

@@ -87,6 +87,14 @@ type internal MongoBackbone(settings : Backbone.AllSettings) =
 
     let clusterSettings = ClusterSettings.Defaults
 
+    let clusterSettings = ClusterSettings.Create(fun builder ->
+        builder.AddHosts(settings.Hosts)
+
+        match settings.ReplicaSet with
+        | Some x -> builder.SetReplicaSetName x
+        | None -> ()
+    )
+
     let streamFactory = NetworkStreamFactory(networkStreamSettings, DnsCache())
     let connFactory = StreamConnectionFactory(streamFactory, eventPublisher, traceManager)
 
