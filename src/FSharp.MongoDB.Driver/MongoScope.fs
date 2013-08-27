@@ -7,6 +7,7 @@ open MongoDB.Bson
 
 open MongoDB.Driver.Core
 open MongoDB.Driver.Core.Protocol
+open MongoDB.Driver.Core.Protocol.Messages
 
 [<AutoOpen>]
 module private Helpers =

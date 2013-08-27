@@ -6,7 +6,7 @@ open MongoDB.Driver.Core
 
 [<Interface>]
 type IMongoDatabase =
-    abstract member Drop : unit -> #CommandResult
+    abstract member Drop : unit -> CommandResult
 
     abstract member GetCollection : string -> IMongoCollection<BsonDocument>
 

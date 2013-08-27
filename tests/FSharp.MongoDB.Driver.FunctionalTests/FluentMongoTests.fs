@@ -12,7 +12,7 @@ module FluentMongo =
     [<AutoOpen>]
     module private Configuration =
 
-        let private client = MongoClient(Backbone.DefaultSettings.all) :> IMongoClient
+        let private client = MongoClient() :> IMongoClient
 
         let private db = "fsharpdriverfunctionaltests"
 

@@ -1,9 +1,12 @@
 ﻿namespace FSharp.MongoDB.Driver.Tests
 
+open System.Net
+
 open MongoDB.Bson
 
 open MongoDB.Driver.Core
 open MongoDB.Driver.Core.Protocol
+open MongoDB.Driver.Core.Protocol.Messages
 
 open NUnit.Framework
 open Swensen.Unquote
@@ -29,8 +32,7 @@ module MongoBackbone =
             backbone.DropCollection db clctn|> ignore
 
         [<Test>]
-        [<ExpectedException("System.ObjectDisposedException")>]
-        let ``fail when iterate through cursor twice``() =
+        let ``succeed when iterate through cursor twice``() =
             let docs = [ BsonDocument([ BsonElement("_id", BsonInt32(11));
                                         BsonElement("item", BsonString("pencil"));
                                         BsonElement("qty", BsonInt32(50));
@@ -56,7 +58,7 @@ module MongoBackbone =
             for _ in [1 .. 2] do for _ in res do ()
 
         [<Test>]
-        [<ExpectedException(typeof<MongoWriteConcernException>)>]
+        [<ExpectedException(typeof<MongoDuplicateKeyException>)>]
         let ``fail when insert duplicate keys``() =
             let id = 11 // make clear that all the documents use the same _id
             let docs = [ BsonDocument([ BsonElement("_id", BsonInt32(id));
@@ -71,7 +73,7 @@ module MongoBackbone =
                                         BsonElement("qty", BsonInt32(25)) ]) ]
 
             let insertFlags = InsertFlags.None
-            let insertSettings = { Operation.DefaultSettings.insert with WriteConcern = WriteConcern.Acknowledged }
+            let insertSettings = { Operation.DefaultSettings.insert with WriteConcern = Some WriteConcern.Acknowledged }
 
             try
                 backbone.BulkInsert db clctn docs insertFlags insertSettings |> ignore
@@ -96,7 +98,7 @@ module MongoBackbone =
             let update = BsonDocument("qty", BsonDocument("$inc", BsonInt32(-1))) // careful here
 
             let updateFlags = UpdateFlags.None
-            let updateSettings = { Operation.DefaultSettings.update with CheckUpdateDocument = true }
+            let updateSettings = { Operation.DefaultSettings.update with CheckUpdateDocument = Some true }
 
             try
                 backbone.Update db clctn updateQuery update updateFlags updateSettings |> ignore
@@ -121,7 +123,7 @@ module MongoBackbone =
                                      BsonElement("qty", BsonInt32(15)) ])
 
             let insertFlags = InsertFlags.None
-            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = false }
+            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = Some false }
 
             backbone.Insert db clctn doc insertFlags insertSettings |> ignore
 
@@ -223,7 +225,7 @@ module MongoBackbone =
                                      BsonElement("qty", BsonInt32(15)) ])
 
             let insertFlags = InsertFlags.None
-            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = false }
+            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = Some false }
 
             backbone.Insert db clctn doc insertFlags insertSettings |> ignore
 
@@ -344,7 +346,7 @@ module MongoBackbone =
                                         BsonElement("qty", BsonInt32(25)) ]) ]
 
             let insertFlags = InsertFlags.None
-            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = true }
+            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = Some true }
 
             backbone.BulkInsert db clctn docs insertFlags insertSettings |> ignore
 
@@ -384,7 +386,7 @@ module MongoBackbone =
                                         BsonElement("qty", BsonInt32(25)) ]) ]
 
             let insertFlags = InsertFlags.None
-            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = true }
+            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = Some true }
 
             backbone.BulkInsert db clctn docs insertFlags insertSettings |> ignore
 
@@ -427,7 +429,7 @@ module MongoBackbone =
                                         BsonElement("qty", BsonInt32(25)) ]) ]
 
             let insertFlags = InsertFlags.None
-            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = true }
+            let insertSettings = { Operation.DefaultSettings.insert with AssignIdOnInsert = Some true }
 
             backbone.BulkInsert db clctn docs insertFlags insertSettings |> ignore
 

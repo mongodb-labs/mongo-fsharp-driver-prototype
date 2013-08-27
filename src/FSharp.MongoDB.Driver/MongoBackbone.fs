@@ -1,10 +1,5 @@
 namespace FSharp.MongoDB.Driver
 
-open System
-open System.Collections.Generic
-open System.Net
-open System.Threading
-
 open MongoDB.Bson
 open MongoDB.Bson.Serialization
 
@@ -13,77 +8,133 @@ open MongoDB.Driver.Core.Connections
 open MongoDB.Driver.Core.Diagnostics
 open MongoDB.Driver.Core.Events
 open MongoDB.Driver.Core.Operations
-open MongoDB.Driver.Core.Protocol
+open MongoDB.Driver.Core.Protocol.Messages
+open MongoDB.Driver.Core.Sessions
 
 type internal MongoBackbone(settings : Backbone.AllSettings) =
 
     let eventPublisher = EventPublisher()
-    let traceManager = new TraceManager()
 
-    let streamSettings = DefaultStreamFactorySettings(connectTimeout = settings.Stream.ConnectTimeout,
-                                                      readTimeout = settings.Stream.ReadTimeout,
-                                                      writeTimeout = settings.Stream.WriteTimeout,
-                                                      tcpReceiveBufferSize = settings.Stream.TcpReceiveBufferSize,
-                                                      tcpSendBufferSize = settings.Stream.TcpSendBufferSize)
+    let networkStreamSettings =
+        NetworkStreamSettings.Create(fun builder ->
+            match settings.Stream.ConnectTimeout with
+            | Some x -> builder.SetConnectTimeout x
+            | None -> ()
 
-    let channelProviderSettings = DefaultChannelProviderSettings(connectionMaxIdleTime = settings.ChannelProvider.ConnectionMaxIdleTime,
-                                                                 connectionMaxLifeTime = settings.ChannelProvider.ConnectionMaxLifeTime,
-                                                                 maxSize = settings.ChannelProvider.MaxSize,
-                                                                 minSize = settings.ChannelProvider.MinSize,
-                                                                 sizeMaintenanceFrequency = settings.ChannelProvider.SizeMaintenanceFrequency,
-                                                                 maxWaitQueueSize = settings.ChannelProvider.WaitQueueSize)
+            match settings.Stream.ReadTimeout with
+            | Some x -> builder.SetReadTimeout x
+            | None -> ()
 
-    let clusterableServerSettings = DefaultClusterableServerSettings(connectRetryFrequency = settings.ClusterableServer.ConnectRetryFrequency,
-                                                                     heartbeatFrequency = settings.ClusterableServer.HeartbeatFrequency,
-                                                                     maxDocumentSizeDefault = settings.ClusterableServer.MaxDocumentSizeDefault,
-                                                                     maxMessageSizeDefault = settings.ClusterableServer.MaxDocumentSizeDefault)
+            match settings.Stream.WriteTimeout with
+            | Some x -> builder.SetWriteTimeout x
+            | None -> ()
 
+            match settings.Stream.TcpReceiveBufferSize with
+            | Some x -> builder.SetTcpReceiveBufferSize x
+            | None -> ()
 
-    let streamFactory = DefaultStreamFactory(streamSettings, DnsCache())
-    let connFactory = DefaultConnectionFactory(streamFactory, eventPublisher, traceManager)
-    let channelFactory = DefaultChannelProviderFactory(channelProviderSettings,
-                                                       connFactory, eventPublisher, traceManager)
-    let nodeFactory = DefaultClusterableServerFactory(false, clusterableServerSettings,
-                                                      channelFactory, connFactory, eventPublisher, traceManager)
+            match settings.Stream.TcpSendBufferSize with
+            | Some x -> builder.SetTcpSendBufferSize x
+            | None -> ()
+        )
 
-    let cluster = new SingleServerCluster(DnsEndPoint("localhost", 27017), nodeFactory)
+    let streamConnectionSettings = StreamConnectionSettings.Defaults
+
+    let connectionPoolSettings =
+        ConnectionPoolSettings.Create(fun builder ->
+            match settings.ConnectionPool.ConnectionMaxIdleTime with
+            | Some x -> builder.SetConnectionMaxIdleTime x
+            | None -> ()
+
+            match settings.ConnectionPool.ConnectionMaxLifeTime with
+            | Some x -> builder.SetConnectionMaxLifeTime x
+            | None -> ()
+
+            match settings.ConnectionPool.MaxSize with
+            | Some x -> builder.SetMaxSize x
+            | None -> ()
+
+            match settings.ConnectionPool.MinSize with
+            | Some x -> builder.SetMinSize x
+            | None -> ()
+
+            match settings.ConnectionPool.SizeMaintenanceFrequency with
+            | Some x -> builder.SetSizeMaintenanceFrequency x
+            | None -> ()
+
+            match settings.ConnectionPool.WaitQueueSize with
+            | Some x -> builder.SetWaitQueueSize x
+            | None -> ()
+        )
+
+    let clusterableServerSettings =
+        ClusterableServerSettings.Create(fun builder ->
+            match settings.ClusterableServer.ConnectRetryFrequency with
+            | Some x -> builder.SetConnectRetryFrequency x
+            | None -> ()
+
+            match settings.ClusterableServer.HeartbeatFrequency with
+            | Some x -> builder.SetHeartbeatFrequency x
+            | None -> ()
+
+            match settings.ClusterableServer.MaxDocumentSizeDefault with
+            | Some x -> builder.SetMaxDocumentSizeDefault x
+            | None -> ()
+
+            match settings.ClusterableServer.MaxMessageSizeDefault with
+            | Some x -> builder.SetMaxMessageSizeDefault x
+            | None -> ()
+        )
+
+    let clusterSettings = ClusterSettings.Create(fun builder ->
+        builder.AddHosts(settings.Hosts)
+
+        match settings.ReplicaSet with
+        | Some x -> builder.SetReplicaSetName x
+        | None -> ()
+    )
+
+    let streamFactory = NetworkStreamFactory(networkStreamSettings, DnsCache())
+    let connFactory = StreamConnectionFactory(streamConnectionSettings, streamFactory,
+                                              eventPublisher)
+
+    let connPoolFactory = ConnectionPoolFactory(connectionPoolSettings, connFactory,
+                                                eventPublisher)
+
+    let channelFactory = ConnectionPoolChannelProviderFactory(connPoolFactory,
+                                                              eventPublisher)
+
+    let nodeFactory = ClusterableServerFactory(clusterableServerSettings, channelFactory,
+                                               connFactory, eventPublisher)
+
+    let clusterFactory = ClusterFactory(nodeFactory)
+    let cluster = clusterFactory.Create(clusterSettings)
+
     do cluster.Initialize()
 
-    member internal x.Cluster = cluster
+    member internal x.Session = new ClusterSession(cluster)
 
 [<AutoOpen>]
-module Operations =
-
-    let selectServer readPref (cluster : ICluster) =
-        cluster.SelectServer(ReadPreferenceServerSelector(readPref),
-                             Timeout.InfiniteTimeSpan,
-                             CancellationToken.None)
-
-    let getChannel (node : IServer) =
-        node.GetChannel(Timeout.InfiniteTimeSpan,
-                        CancellationToken.None)
+module internal Operations =
 
     [<AutoOpen>]
     module DatabaseOps =
 
         type MongoBackbone with
 
-            member internal x.Run db cmd =
-                let flags = QueryFlags.None
-                let settings = Operation.DefaultSettings.command
+            member x.Run db cmd =
 
-                let commandOp = CommandOperation(db, settings.ReaderSettings, settings.WriterSettings,
-                                                 cmd, flags, null, ReadPreference.Primary, null,
-                                                 BsonSerializer.LookupSerializer(typeof<CommandResult>))
+                let database = DatabaseNamespace(db)
 
-                use channel =
-                    x.Cluster
-                    |> selectServer ReadPreference.Primary
-                    |> getChannel
+                let commandOp =
+                    GenericCommandOperation<CommandResult>(
+                        Database = database,
+                        Command = cmd,
+                        Session = x.Session)
 
-                commandOp.Execute channel
+                commandOp.Execute()
 
-            member internal x.DropDatabase db =
+            member x.DropDatabase db =
 
                 let cmd = BsonDocument("dropDatabase", BsonInt32(1))
                 x.Run db cmd
@@ -91,97 +142,133 @@ module Operations =
     [<AutoOpen>]
     module CollectionOps =
 
-        type private CursorChannelProvider(channel : IServerChannel) =
-
-            interface IDisposable with
-                member x.Dispose() =
-                    channel.Dispose()
-                    GC.SuppressFinalize(x)
-
-            interface ICursorChannelProvider with
-                member __.Server = channel.Server
-                member __.GetChannel() = {
-                    new IServerChannel with
-                        member __.Server = channel.Server
-                        member __.DnsEndPoint = channel.DnsEndPoint
-                        member __.Receive args = channel.Receive args
-                        member __.Send packet = channel.Send packet
-                        member x.Dispose() = GC.SuppressFinalize(x)
-                }
-
         type MongoBackbone with
 
-            member internal x.DropCollection db clctn =
+            member x.DropCollection db clctn =
 
                 let cmd = BsonDocument("drop", BsonString(clctn))
                 x.Run db cmd
 
-            member internal x.BulkInsert db clctn (docs : seq<'DocType>) flags (settings : Operation.InsertSettings) =
+            member x.BulkInsert db clctn (docs : seq<'DocType>) flags (settings : Operation.InsertSettings) =
 
-                let insertOp = InsertOperation(MongoNamespace(db, clctn), settings.ReaderSettings,
-                                               settings.WriterSettings, settings.WriteConcern,
-                                               settings.AssignIdOnInsert, settings.CheckInsertDocuments,
-                                               typeof<'DocType>, docs, flags, 0)
+                let collection = CollectionNamespace(db, clctn)
 
-                use channel =
-                    x.Cluster
-                    |> selectServer ReadPreference.Primary
-                    |> getChannel
+                let insertOp =
+                    InsertOperation(
+                        Collection = collection,
+                        Documents = docs,
+                        DocumentType = typeof<'DocType>,
+                        Flags = flags,
+                        Session = x.Session)
 
-                insertOp.Execute channel
+                match settings.ReaderSettings with
+                | Some x -> insertOp.ReaderSettings <- x
+                | None -> ()
 
-            member internal x.Insert db clctn doc flags settings =
+                match settings.WriterSettings with
+                | Some x -> insertOp.WriterSettings <- x
+                | None -> ()
+
+                match settings.WriteConcern with
+                | Some x -> insertOp.WriteConcern <- x
+                | None -> ()
+
+                match settings.AssignIdOnInsert with
+                | Some x -> insertOp.AssignIdOnInsert <- x
+                | None -> ()
+
+                match settings.CheckInsertDocuments with
+                | Some x -> insertOp.CheckInsertDocuments <- x
+                | None -> ()
+
+                insertOp.Execute()
+
+            member x.Insert db clctn doc flags settings =
                     let res = x.BulkInsert db clctn [ doc ] flags settings
                     use iter = res.GetEnumerator()
 
                     if not (iter.MoveNext()) then raise <| MongoOperationException("insert command missing write concern result")
                     iter.Current
 
-            member internal x.Find<'DocType> db clctn query project limit skip flags (settings : Operation.QuerySettings) =
+            member x.Find<'DocType> db clctn query project limit skip flags (settings : Operation.QuerySettings) =
 
-                let queryOp = QueryOperation<'DocType>(MongoNamespace(db, clctn), settings.ReaderSettings,
-                                                       settings.WriterSettings, settings.BatchSize, project,
-                                                       flags, limit, null, query, ReadPreference.Nearest, null,
-                                                       BsonSerializer.LookupSerializer typeof<'DocType>, skip)
+                let collection = CollectionNamespace(db, clctn)
 
-                let channel =
-                    x.Cluster
-                    |> selectServer ReadPreference.Nearest
-                    |> getChannel
+                let queryOp =
+                    QueryOperation<'DocType>(
+                        Collection = collection,
+                        Query = query,
+                        Fields = project,
+                        Limit = limit,
+                        Skip = skip,
+                        Flags = flags,
+                        Session = x.Session)
 
-                let cursorChannel = new CursorChannelProvider(channel)  
+                match settings.ReaderSettings with
+                | Some x -> queryOp.ReaderSettings <- x
+                | None -> ()
 
-                seq { let iter = queryOp.Execute cursorChannel
-                      try
-                          while iter.MoveNext() do
-                              yield iter.Current
-                      finally
-                          iter.Dispose()
-                          (cursorChannel :> IDisposable).Dispose()
-                    }
+                match settings.WriterSettings with
+                | Some x -> queryOp.WriterSettings <- x
+                | None -> ()
 
-            member internal x.Update db clctn query update flags (settings : Operation.UpdateSettings) =
+                match settings.BatchSize with
+                | Some x -> queryOp.BatchSize <- x
+                | None -> ()
 
-                let updateOp = UpdateOperation(MongoNamespace(db, clctn), settings.ReaderSettings,
-                                               settings.WriterSettings, settings.WriteConcern,
-                                               query, update, flags, settings.CheckUpdateDocument)
+                queryOp :> seq<'DocType>
 
-                use channel =
-                    x.Cluster
-                    |> selectServer ReadPreference.Primary
-                    |> getChannel
+            member x.Update db clctn query update flags (settings : Operation.UpdateSettings) =
 
-                updateOp.Execute channel
+                let collection = CollectionNamespace(db, clctn)
 
-            member internal x.Remove db clctn query flags (settings : Operation.RemoveSettings) =
+                let updateOp =
+                    UpdateOperation(
+                        Collection = collection,
+                        Query = query,
+                        Update = update,
+                        Flags = flags,
+                        Session = x.Session)
 
-                let removeOp = RemoveOperation(MongoNamespace(db, clctn), settings.ReaderSettings,
-                                               settings.WriterSettings, settings.WriteConcern,
-                                               query, flags)
+                match settings.ReaderSettings with
+                | Some x -> updateOp.ReaderSettings <- x
+                | None -> ()
 
-                use channel =
-                    x.Cluster
-                    |> selectServer ReadPreference.Primary
-                    |> getChannel
+                match settings.WriterSettings with
+                | Some x -> updateOp.WriterSettings <- x
+                | None -> ()
 
-                removeOp.Execute channel
+                match settings.WriteConcern with
+                | Some x -> updateOp.WriteConcern <- x
+                | None -> ()
+
+                match settings.CheckUpdateDocument with
+                | Some x -> updateOp.CheckUpdateDocument <- x
+                | None -> ()
+
+                updateOp.Execute()
+
+            member x.Remove db clctn query flags (settings : Operation.RemoveSettings) =
+
+                let collection = CollectionNamespace(db, clctn)
+
+                let removeOp =
+                    RemoveOperation(
+                        Collection = collection,
+                        Query = query,
+                        Flags = flags,
+                        Session = x.Session)
+
+                match settings.ReaderSettings with
+                | Some x -> removeOp.ReaderSettings <- x
+                | None -> ()
+
+                match settings.WriterSettings with
+                | Some x -> removeOp.WriterSettings <- x
+                | None -> ()
+
+                match settings.WriteConcern with
+                | Some x -> removeOp.WriteConcern <- x
+                | None -> ()
+
+                removeOp.Execute()
