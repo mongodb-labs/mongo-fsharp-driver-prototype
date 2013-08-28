@@ -82,7 +82,7 @@ module Quotations =
         let sort (x : 'a) (y : 'b list) : 'b list = invalidOp "not implemented"
 
     [<AutoOpen>]
-    module private Helpers =
+    module internal Helpers =
 
         let inline isGenericTypeDefinedFrom<'a> (typ : System.Type) =
             typ.IsGenericType && typ.GetGenericTypeDefinition() = typedefof<'a>
@@ -113,14 +113,13 @@ module Quotations =
 
         let rec (|CallDynamic|_|) expr =
             match expr with
-            | SpecificCall <@ (?) @> (_, _, [ Var (var); String (field) ]) ->
+            | SpecificCall <@ (?) @> (_, _, [ Var (var); String (field) ])
+            | Coerce (CallDynamic (var, field), _) ->
                 Some(var, field)
 
-            | SpecificCall <@ (?) @> (_, _, [ CallDynamic (var, subdoc); String (field) ]) ->
+            | SpecificCall <@ (?) @> (_, _, [ CallDynamic (var, subdoc); String (field) ])
+            | SpecificCall <@ (?) @> (_, _, [ GetProperty (var, subdoc); String (field) ]) ->
                 Some(var, sprintf "%s.%s" subdoc field)
-
-            | GetProperty (var, field) ->
-                Some(var, field)
 
             | _ -> None
 
@@ -168,7 +167,7 @@ module Quotations =
 
     let private doc (elem : BsonElement) = BsonDocument(elem)
 
-    let rec private queryParser v q =
+    let rec internal queryParser v q =
         let (|Comparison|_|) op expr =
             match expr with
             | InfixOp op (GetField (var, field), value) when var = v ->
@@ -293,7 +292,7 @@ module Quotations =
 
         | _ -> invalidOp "unrecognized pattern"
 
-    and private updateParser v f q =
+    and internal updateParser v f q =
         let rec (|DeSugared|_|) v f op expr =
             match expr with
             | Lambda (_, SpecificCall <@ %op @> _) ->
@@ -411,7 +410,7 @@ module Quotations =
         | DeSugared var field <@ (|||) @> ([ Int32 (value) ]) ->
             BsonElement("$bit", BsonDocument(field, BsonDocument("or", BsonInt32(value))))
 
-        | _ -> failwith "unrecognized expression"
+        | _ -> failwithf "unrecognized expression\n%A" q
 
     and bson (q : Expr<'a -> 'b>) =
         match box q with

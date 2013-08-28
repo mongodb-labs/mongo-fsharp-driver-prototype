@@ -83,6 +83,9 @@
     <Compile Include="QuotableMongo.fs">
       <Link>QuotableMongo.fs</Link>
     </Compile>
+    <Compile Include="ExpressibleMongo.fs">
+      <Link>ExpressibleMongo.fs</Link>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\FSharp.MongoDB.Bson\FSharp.MongoDB.Bson.fsproj">

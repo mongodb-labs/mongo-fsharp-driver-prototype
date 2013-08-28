@@ -103,4 +103,4 @@ type Scope<'DocType> = private {
         member x.GetEnumerator() = x.Get()
 
     interface IEnumerable with
-        override x.GetEnumerator() = (x :> IEnumerable<'DocType>).GetEnumerator() :> IEnumerator
+        member x.GetEnumerator() = (x :> IEnumerable<'DocType>).GetEnumerator() :> IEnumerator
