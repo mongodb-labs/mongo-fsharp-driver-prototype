@@ -472,35 +472,35 @@ module TypedQuotableMongo =
 
             [<Test>]
             let ``test typed mutable add to set with each modifier``() =
-                let update = <@ <@ fun (x : Mutable.Item) -> [ x.tags <- x.tags |> Update.each Update.addToSet [ "appliances"; "school"; "book" ] ] @> |> bson @>
+                let update = <@ <@ fun (x : Mutable.Item) -> [ x.tags <- x.tags |> Update.addToSetEach [ "appliances"; "school"; "book" ] ] @> |> bson @>
                 let expected = <@ BsonDocument("$addToSet", BsonDocument("tags", BsonDocument("$each", BsonArray([ "appliances"; "school"; "book" ])))) @>
 
                 test <@ %update = %expected @>
 
             [<Test>]
             let ``test typed immutable add to set with each modifier``() =
-                let update = <@ <@ fun (x : Immutable.Item) -> { x with tags = x.tags |> Update.each Update.addToSet [ "appliances"; "school"; "book" ] } @> |> bson @>
+                let update = <@ <@ fun (x : Immutable.Item) -> { x with tags = x.tags |> Update.addToSetEach [ "appliances"; "school"; "book" ] } @> |> bson @>
                 let expected = <@ BsonDocument("$addToSet", BsonDocument("tags", BsonDocument("$each", BsonArray([ "appliances"; "school"; "book" ])))) @>
 
                 test <@ %update = %expected @>
 
             [<Test>]
             let ``test typed mutable push with each modifier``() =
-                let update = <@ <@ fun (x : Mutable.Item) -> [ x.tags <- x.tags |> Update.each Update.push [ "appliances"; "school"; "book" ] ] @> |> bson @>
+                let update = <@ <@ fun (x : Mutable.Item) -> [ x.tags <- x.tags |> Update.pushEach [ "appliances"; "school"; "book" ] ] @> |> bson @>
                 let expected = <@ BsonDocument("$push", BsonDocument("tags", BsonDocument("$each", BsonArray([ "appliances"; "school"; "book" ])))) @>
 
                 test <@ %update = %expected @>
 
             [<Test>]
             let ``test typed immutable push with each modifier``() =
-                let update = <@ <@ fun (x : Immutable.Item) -> { x with tags = x.tags |> Update.each Update.push [ "appliances"; "school"; "book" ] } @> |> bson @>
+                let update = <@ <@ fun (x : Immutable.Item) -> { x with tags = x.tags |> Update.pushEach [ "appliances"; "school"; "book" ] } @> |> bson @>
                 let expected = <@ BsonDocument("$push", BsonDocument("tags", BsonDocument("$each", BsonArray([ "appliances"; "school"; "book" ])))) @>
 
                 test <@ %update = %expected @>
 
             [<Test>]
             let ``test typed mutable push with slice modifier``() =
-                let update = <@ <@ fun (x : Mutable.Item) -> [ x.tags <- x.tags |> Update.each Update.push [ "appliances"; "school"; "book" ]
+                let update = <@ <@ fun (x : Mutable.Item) -> [ x.tags <- x.tags |> Update.pushEach [ "appliances"; "school"; "book" ]
                                                                                 |> Update.slice -5 ] @> |> bson @>
 
                 let expected = <@ BsonDocument("$push", BsonDocument("tags", BsonDocument([ BsonElement("$each", BsonArray([ "appliances"; "school"; "book" ]))
@@ -510,7 +510,7 @@ module TypedQuotableMongo =
 
             [<Test>]
             let ``test typed immutable push with slice modifier``() =
-                let update = <@ <@ fun (x : Immutable.Item) -> { x with tags = x.tags |> Update.each Update.push [ "appliances"; "school"; "book" ]
+                let update = <@ <@ fun (x : Immutable.Item) -> { x with tags = x.tags |> Update.pushEach [ "appliances"; "school"; "book" ]
                                                                                       |> Update.slice -5 } @> |> bson @>
 
                 let expected = <@ BsonDocument("$push", BsonDocument("tags", BsonDocument([ BsonElement("$each", BsonArray([ "appliances"; "school"; "book" ]))
@@ -524,7 +524,7 @@ module TypedQuotableMongo =
                 let size2 = { Mutable.Size.length = 4; Mutable.Size.width = 7; Mutable.Size.height = 2 }
                 let size3 = { Mutable.Size.length = 5; Mutable.Size.width = 6; Mutable.Size.height = 4 }
 
-                let update = <@ <@ fun (x : Mutable.Item) -> [ x.sizes <- x.sizes |> Update.each Update.push [ size1; size2; size3 ]
+                let update = <@ <@ fun (x : Mutable.Item) -> [ x.sizes <- x.sizes |> Update.pushEach [ size1; size2; size3 ]
                                                                                   |> Update.sort (bson <@ fun (y : BsonDocument) -> y?width = 1 @>)
                                                                                   |> Update.slice -5 ] @> |> bson @>
 
@@ -542,7 +542,7 @@ module TypedQuotableMongo =
                 let size2 = { Immutable.Size.length = 4; Immutable.Size.width = 7; Immutable.Size.height = 2 }
                 let size3 = { Immutable.Size.length = 5; Immutable.Size.width = 6; Immutable.Size.height = 4 }
 
-                let update = <@ <@ fun (x : Immutable.Item) -> { x with sizes = x.sizes |> Update.each Update.push [ size1; size2; size3 ]
+                let update = <@ <@ fun (x : Immutable.Item) -> { x with sizes = x.sizes |> Update.pushEach [ size1; size2; size3 ]
                                                                                         |> Update.sort (bson <@ fun (y : BsonDocument) -> y?width = 1 @>)
                                                                                         |> Update.slice -5 } @> |> bson @>
 

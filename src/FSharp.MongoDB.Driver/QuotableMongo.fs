@@ -75,7 +75,9 @@ module Quotations =
 
         let push (x : 'a) (y : 'a list) : 'a list = invalidOp "not implemented"
 
-        let each (x : 'a -> 'a list -> 'a list) (y : 'a list) (z : 'a list) : 'a list = invalidOp "not implemented"
+        let addToSetEach (x : 'a list) (y : 'a list) : 'a list = invalidOp "not implemented"
+
+        let pushEach (x : 'a list) (y : 'a list) : 'a list = invalidOp "not implemented"
 
         let slice (x : int) (y : 'a list) : 'a list = invalidOp "not implemented"
 
@@ -356,22 +358,18 @@ module Quotations =
         | DeSugared var field <@ Update.push @> ([ List (values, _) ]) ->
             BsonElement("$push", BsonDocument(field, BsonArray(values)))
 
-        | DeSugared var field <@ Update.each @> ([ op; List (values, _) ]) ->
-            match op with
-            | Lambda (_, Lambda (_, SpecificCall <@ Update.addToSet @> _)) ->
-                BsonElement("$addToSet", BsonDocument(field, BsonDocument("$each", BsonArray(values))))
+        | DeSugared var field <@ Update.addToSetEach @> ([ List (values, _) ]) ->
+            BsonElement("$addToSet", BsonDocument(field, BsonDocument("$each", BsonArray(values))))
 
-            | Lambda (_, Lambda (_, SpecificCall <@ Update.push @> _)) ->
-                let array =
-                    try
-                        BsonArray(values |> List.map BsonValue.Create)
-                    with
-                       | :? System.ArgumentException ->
-                            BsonArray(values |> List.map (fun x -> x.ToBsonDocument(x.GetType()) :> BsonValue))
+        | DeSugared var field <@ Update.pushEach @> ([ List (values, _) ]) ->
+            let array =
+                try
+                    BsonArray(values |> List.map BsonValue.Create)
+                with
+                    | :? System.ArgumentException ->
+                        BsonArray(values |> List.map (fun x -> x.ToBsonDocument(x.GetType()) :> BsonValue))
 
-                BsonElement("$push", BsonDocument(field, BsonDocument("$each", array)))
-
-            | _ -> failwith "unrecognized operation with Update.each"
+            BsonElement("$push", BsonDocument(field, BsonDocument("$each", array)))
 
         | SpecificCall <@ (|>) @> (_, _, [ inner; Let (_, Int32(value), Lambda (_, SpecificCall <@ Update.slice @> _)) ])
         | SpecificCall <@ (>>) @> (_, _, [ inner; Let (_, Int32(value), Lambda (_, SpecificCall <@ Update.slice @> _)) ]) ->

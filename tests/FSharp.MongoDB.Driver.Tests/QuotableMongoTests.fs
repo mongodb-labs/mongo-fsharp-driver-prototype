@@ -370,35 +370,35 @@ module QuotableMongo =
 
             [<Test>]
             let ``test sugared add to set with each modifier``() =
-                let query = <@ <@ fun (x : BsonDocument) -> [ x?tags <- Update.each Update.addToSet [ "appliances"; "school"; "book" ] ] @> |> bson @>
+                let query = <@ <@ fun (x : BsonDocument) -> [ x?tags <- Update.addToSetEach [ "appliances"; "school"; "book" ] ] @> |> bson @>
                 let expected = <@ BsonDocument("$addToSet", BsonDocument("tags", BsonDocument("$each", BsonArray([ "appliances"; "school"; "book" ])))) @>
 
                 test <@ %query = %expected @>
 
             [<Test>]
             let ``test unsugared add to set with each modifier``() =
-                let query = <@ <@ fun (x : BsonDocument) -> [ x?tags <- x?tags |> Update.each Update.addToSet [ "appliances"; "school"; "book" ] ] @> |> bson @>
+                let query = <@ <@ fun (x : BsonDocument) -> [ x?tags <- x?tags |> Update.addToSetEach [ "appliances"; "school"; "book" ] ] @> |> bson @>
                 let expected = <@ BsonDocument("$addToSet", BsonDocument("tags", BsonDocument("$each", BsonArray([ "appliances"; "school"; "book" ])))) @>
 
                 test <@ %query = %expected @>
 
             [<Test>]
             let ``test sugared push with each modifier``() =
-                let query = <@ <@ fun (x : BsonDocument) -> [ x?tags <- Update.each Update.push [ "appliances"; "school"; "book" ] ] @> |> bson @>
+                let query = <@ <@ fun (x : BsonDocument) -> [ x?tags <- Update.pushEach [ "appliances"; "school"; "book" ] ] @> |> bson @>
                 let expected = <@ BsonDocument("$push", BsonDocument("tags", BsonDocument("$each", BsonArray([ "appliances"; "school"; "book" ])))) @>
 
                 test <@ %query = %expected @>
 
             [<Test>]
             let ``test unsugared push with each modifier``() =
-                let query = <@ <@ fun (x : BsonDocument) -> [ x?tags <- x?tags |> Update.each Update.push [ "appliances"; "school"; "book" ] ] @> |> bson @>
+                let query = <@ <@ fun (x : BsonDocument) -> [ x?tags <- x?tags |> Update.pushEach [ "appliances"; "school"; "book" ] ] @> |> bson @>
                 let expected = <@ BsonDocument("$push", BsonDocument("tags", BsonDocument("$each", BsonArray([ "appliances"; "school"; "book" ])))) @>
 
                 test <@ %query = %expected @>
 
             [<Test>]
             let ``test sugared push with slice modifier``() =
-                let query = <@ <@ fun (x : BsonDocument) -> [ x?tags <- Update.each Update.push [ "appliances"; "school"; "book" ]
+                let query = <@ <@ fun (x : BsonDocument) -> [ x?tags <- Update.pushEach [ "appliances"; "school"; "book" ]
                                                                      >> Update.slice -5 ] @> |> bson @>
 
                 let expected = <@ BsonDocument("$push", BsonDocument("tags", BsonDocument([ BsonElement("$each", BsonArray([ "appliances"; "school"; "book" ]))
@@ -408,7 +408,7 @@ module QuotableMongo =
 
             [<Test>]
             let ``test unsugared push with slice modifier``() =
-                let query = <@ <@ fun (x : BsonDocument) -> [ x?tags <- x?tags |> Update.each Update.push [ "appliances"; "school"; "book" ]
+                let query = <@ <@ fun (x : BsonDocument) -> [ x?tags <- x?tags |> Update.pushEach [ "appliances"; "school"; "book" ]
                                                                                |> Update.slice -5 ] @> |> bson @>
 
                 let expected = <@ BsonDocument("$push", BsonDocument("tags", BsonDocument([ BsonElement("$each", BsonArray([ "appliances"; "school"; "book" ]))
@@ -422,7 +422,7 @@ module QuotableMongo =
                 let size2 = BsonDocument([ BsonElement("length", BsonInt32(4)); BsonElement("width", BsonInt32(7)); BsonElement("height", BsonInt32(2)) ])
                 let size3 = BsonDocument([ BsonElement("length", BsonInt32(5)); BsonElement("width", BsonInt32(6)); BsonElement("height", BsonInt32(4)) ])
 
-                let query = <@ <@ fun (x : BsonDocument) -> [ x?sizes <- Update.each Update.push [ size1; size2; size3 ]
+                let query = <@ <@ fun (x : BsonDocument) -> [ x?sizes <- Update.pushEach [ size1; size2; size3 ]
                                                                       >> Update.sort (bson <@ fun (y : BsonDocument) -> y?width = 1 @>)
                                                                       >> Update.slice -5 ] @> |> bson @>
 
@@ -439,7 +439,7 @@ module QuotableMongo =
                 let size2 = BsonDocument([ BsonElement("length", BsonInt32(4)); BsonElement("width", BsonInt32(7)); BsonElement("height", BsonInt32(2)) ])
                 let size3 = BsonDocument([ BsonElement("length", BsonInt32(5)); BsonElement("width", BsonInt32(6)); BsonElement("height", BsonInt32(4)) ])
 
-                let query = <@ <@ fun (x : BsonDocument) -> [ x?sizes <- x?sizes |> Update.each Update.push [ size1; size2; size3 ]
+                let query = <@ <@ fun (x : BsonDocument) -> [ x?sizes <- x?sizes |> Update.pushEach [ size1; size2; size3 ]
                                                                                  |> Update.sort (bson <@ fun (y : BsonDocument) -> y?width = 1 @>)
                                                                                  |> Update.slice -5 ] @> |> bson @>
 
