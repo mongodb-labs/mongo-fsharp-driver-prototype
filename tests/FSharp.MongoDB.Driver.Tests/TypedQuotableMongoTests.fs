@@ -430,14 +430,14 @@ module TypedQuotableMongo =
 
             [<Test>]
             let ``test typed mutable pull``() =
-                let update = <@ <@ fun (x : Mutable.Item) -> [ x.sizes <- x.sizes |> Update.pull (bson <@ fun (y : Mutable.Size) -> y.height = 75 @>) ] @> |> bson @>
+                let update = <@ <@ fun (x : Mutable.Item) -> [ x.sizes <- x.sizes |> Update.pull (fun (y : Mutable.Size) -> y.height = 75) ] @> |> bson @>
                 let expected = <@ BsonDocument("$pull", BsonDocument("sizes", BsonDocument("height", BsonInt32(75)))) @>
 
                 test <@ %update = %expected @>
 
             [<Test>]
             let ``test typed immutable pull``() =
-                let update = <@ <@ fun (x : Immutable.Item) -> { x with sizes = x.sizes |> Update.pull (bson <@ fun (y : Immutable.Size) -> y.height = 75 @>) } @> |> bson @>
+                let update = <@ <@ fun (x : Immutable.Item) -> { x with sizes = x.sizes |> Update.pull (fun (y : Immutable.Size) -> y.height = 75) } @> |> bson @>
                 let expected = <@ BsonDocument("$pull", BsonDocument("sizes", BsonDocument("height", BsonInt32(75)))) @>
 
                 test <@ %update = %expected @>

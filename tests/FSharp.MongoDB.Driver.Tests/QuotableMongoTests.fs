@@ -328,14 +328,14 @@ module QuotableMongo =
 
             [<Test>]
             let ``test sugared pull``() =
-                let query = <@ <@ fun (x : BsonDocument) -> [ x?sizes <- Update.pull (bson <@ fun (y : BsonDocument) -> y?height = 75 @>) ] @> |> bson @>
+                let query = <@ <@ fun (x : BsonDocument) -> [ x?sizes <- Update.pull (fun (y : BsonDocument) -> y?height = 75) ] @> |> bson @>
                 let expected = <@ BsonDocument("$pull", BsonDocument("sizes", BsonDocument("height", BsonInt32(75)))) @>
 
                 test <@ %query = %expected @>
 
             [<Test>]
             let ``test unsugared pull``() =
-                let query = <@ <@ fun (x : BsonDocument) -> [ x?sizes <- x?sizes |> Update.pull (bson <@ fun (y : BsonDocument) -> y?height = 75 @>) ] @> |> bson @>
+                let query = <@ <@ fun (x : BsonDocument) -> [ x?sizes <- x?sizes |> Update.pull (fun (y : BsonDocument) -> y?height = 75) ] @> |> bson @>
                 let expected = <@ BsonDocument("$pull", BsonDocument("sizes", BsonDocument("height", BsonInt32(75)))) @>
 
                 test <@ %query = %expected @>

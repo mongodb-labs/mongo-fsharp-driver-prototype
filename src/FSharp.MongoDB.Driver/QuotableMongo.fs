@@ -69,7 +69,7 @@ module Quotations =
 
         let popright (x : 'a list) : 'a list = invalidOp "not implemented"
 
-        let pull (x : 'a) (y : 'b list) : 'b list = invalidOp "not implemented"
+        let pull (x : 'a -> bool) (y : 'a list) : 'a list = invalidOp "not implemented"
 
         let pullAll (x : 'a list) (y : 'a list) : 'a list = invalidOp "not implemented"
 
@@ -345,7 +345,7 @@ module Quotations =
         | DeSugared var field <@ Update.popright @> ([]) ->
             BsonElement("$pop", BsonDocument(field, BsonInt32(1)))
 
-        | DeSugared var field <@ Update.pull @> ([ SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]) ]) ->
+        | DeSugared var field <@ Update.pull @> ([ Lambda (v, q) ]) ->
             let nestedElem = queryParser v q
             BsonElement("$pull", BsonDocument(field, doc nestedElem))
 
