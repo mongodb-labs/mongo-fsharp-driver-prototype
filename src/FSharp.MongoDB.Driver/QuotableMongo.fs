@@ -52,7 +52,7 @@ module Quotations =
 
         let where (x : string) y : bool = invalidOp "not implemented"
 
-        let elemMatch x y : bool = invalidOp "not implemented"
+        let elemMatch (x : 'a -> bool) (y : 'a list) : bool = invalidOp "not implemented"
 
         let size (x : int) y : bool = invalidOp "not implemented"
 
@@ -238,7 +238,7 @@ module Quotations =
                 let typ = value :?> BsonType
                 BsonElement(field, BsonDocument("$type", BsonValue.Create typ))
 
-            | Let (_, SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]), Lambda (_, SpecificCall <@ Query.elemMatch @> _)) ->
+            | Let (_, Lambda (v, q), Lambda (_, SpecificCall <@ Query.elemMatch @> _)) ->
                 let nestedElem = queryParser v q
                 let nestedDoc =
                     if nestedElem.Name = "$and" then

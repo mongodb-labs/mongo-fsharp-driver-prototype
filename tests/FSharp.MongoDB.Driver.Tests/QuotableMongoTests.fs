@@ -185,7 +185,7 @@ module QuotableMongo =
 
             [<Test>]
             let ``test element match``() =
-                let query = <@ <@ fun (x : BsonDocument) -> x?sizes |> Query.elemMatch (bson <@ fun (y : BsonDocument) -> y?length = 1 && y?width > 1 @>) @> |> bson @>
+                let query = <@ <@ fun (x : BsonDocument) -> x?sizes |> Query.elemMatch (fun (y : BsonDocument) -> y?length = 1 && y?width > 1) @> |> bson @>
                 let expected = <@ BsonDocument("sizes", BsonDocument("$elemMatch", BsonDocument([ BsonElement("length", BsonInt32(1))
                                                                                                   BsonElement("width", BsonDocument("$gt", BsonInt32(1))) ]))) @>
 
