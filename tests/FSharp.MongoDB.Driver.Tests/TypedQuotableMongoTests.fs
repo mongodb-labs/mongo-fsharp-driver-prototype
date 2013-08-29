@@ -525,13 +525,15 @@ module TypedQuotableMongo =
                 let size3 = { Mutable.Size.length = 5; Mutable.Size.width = 6; Mutable.Size.height = 4 }
 
                 let update = <@ <@ fun (x : Mutable.Item) -> [ x.sizes <- x.sizes |> Update.pushEach [ size1; size2; size3 ]
-                                                                                  |> Update.sort (bson <@ fun (y : BsonDocument) -> y?width = 1 @>)
+                                                                                  |> Update.sortListBy (fun (y : Mutable.Size) -> y.width)
+                                                                                  |> Update.thenListByDescending (fun (y : Mutable.Size) -> y.height)
                                                                                   |> Update.slice -5 ] @> |> bson @>
 
                 let doc (x : Mutable.Size) = (box x).ToBsonDocument(x.GetType())
 
                 let expected = <@ BsonDocument("$push", BsonDocument("sizes", BsonDocument([ BsonElement("$each", BsonArray([ size1; size2; size3 ] |> List.map doc))
-                                                                                             BsonElement("$sort", BsonDocument("width", BsonInt32(1)))
+                                                                                             BsonElement("$sort", BsonDocument([ BsonElement("width", BsonInt32(1))
+                                                                                                                                 BsonElement("height", BsonInt32(-1)) ]))
                                                                                              BsonElement("$slice", BsonInt32(-5)) ]))) @>
 
                 test <@ %update = %expected @>
@@ -543,13 +545,15 @@ module TypedQuotableMongo =
                 let size3 = { Immutable.Size.length = 5; Immutable.Size.width = 6; Immutable.Size.height = 4 }
 
                 let update = <@ <@ fun (x : Immutable.Item) -> { x with sizes = x.sizes |> Update.pushEach [ size1; size2; size3 ]
-                                                                                        |> Update.sort (bson <@ fun (y : BsonDocument) -> y?width = 1 @>)
+                                                                                        |> Update.sortListBy (fun (y : Immutable.Size) -> y.width)
+                                                                                        |> Update.thenListByDescending (fun (y : Immutable.Size) -> y.height)
                                                                                         |> Update.slice -5 } @> |> bson @>
 
                 let doc (x : Immutable.Size)  = (box x).ToBsonDocument(x.GetType())
 
                 let expected = <@ BsonDocument("$push", BsonDocument("sizes", BsonDocument([ BsonElement("$each", BsonArray([ size1; size2; size3 ] |> List.map doc))
-                                                                                             BsonElement("$sort", BsonDocument("width", BsonInt32(1)))
+                                                                                             BsonElement("$sort", BsonDocument([ BsonElement("width", BsonInt32(1))
+                                                                                                                                 BsonElement("height", BsonInt32(-1)) ]))
                                                                                              BsonElement("$slice", BsonInt32(-5)) ]))) @>
 
                 test <@ %update = %expected @>

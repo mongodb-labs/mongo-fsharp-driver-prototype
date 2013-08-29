@@ -81,7 +81,13 @@ module Quotations =
 
         let slice (x : int) (y : 'a list) : 'a list = invalidOp "not implemented"
 
-        let sort (x : 'a) (y : 'b list) : 'b list = invalidOp "not implemented"
+        let sortListBy (x : 'a -> 'b) (y : 'a list) : 'a list = invalidOp "not implemented"
+
+        let sortListByDescending (x : 'a -> 'b) (y : 'a list) : 'a list = invalidOp "not implemented"
+
+        let thenListBy (x : 'a -> 'b) (y : 'a list) : 'a list = invalidOp "not implemented"
+
+        let thenListByDescending (x : 'a -> 'b) (y : 'a list) : 'a list = invalidOp "not implemented"
 
     [<AutoOpen>]
     module internal Helpers =
@@ -314,6 +320,76 @@ module Quotations =
 
             | _ -> None
 
+        let (|PushEach|_|) var field expr =
+            match expr with
+            | DeSugared var field <@ Update.pushEach @> ([ List (values, _) ]) ->
+                let array =
+                    values
+                    |> List.map (fun x ->
+                        try
+                            BsonValue.Create x
+                        with
+                            | :? System.ArgumentException -> x.ToBsonDocument(x.GetType()) :> BsonValue)
+
+                let elem =  BsonElement("$push", BsonDocument(field, BsonDocument("$each", BsonArray(array))))
+                Some elem
+
+            | _ -> None
+
+        let rec (|PushEachWithModifiers|_|) var array expr =
+            match expr with
+            | SpecificCall <@ (|>) @> (_, _, [ PushEach var array (elem); Let (_, Int32(value), Lambda (_, SpecificCall <@ Update.slice @> _)) ])
+            | SpecificCall <@ (|>) @> (_, _, [ PushEachWithModifiers var array (elem); Let (_, Int32(value), Lambda (_, SpecificCall <@ Update.slice @> _)) ]) ->
+                elem.Value.[0].AsBsonDocument.Set("$slice", BsonInt32(value)) |> ignore // e.g. { $push: { <field>: { $each ... } }
+                Some elem
+
+            | SpecificCall <@ (>>) @> (_, _, [ PushEach var array (elem); Let (_, Int32(value), Lambda (_, SpecificCall <@ Update.slice @> _)) ])
+            | SpecificCall <@ (>>) @> (_, _, [ PushEachWithModifiers var array (elem); Let (_, Int32(value), Lambda (_, SpecificCall <@ Update.slice @> _)) ]) ->
+                elem.Value.[0].AsBsonDocument.Set("$slice", BsonInt32(value)) |> ignore // e.g. { $push: { <field>: { $each ... } }
+                Some elem
+
+            | SpecificCall <@ (|>) @> (_, _, [ PushEach var array (elem); Let (_, Lambda (_, GetField (_, field)), Lambda (_, SpecificCall <@ Update.sortListBy @> _)) ])
+            | SpecificCall <@ (|>) @> (_, _, [ PushEachWithModifiers var array (elem); Let (_, Lambda (_, GetField (_, field)), Lambda (_, SpecificCall <@ Update.sortListBy @> _)) ]) ->
+                // overwrite, since using last assigned value
+                elem.Value.[0].AsBsonDocument.Set("$sort", BsonDocument(field, BsonInt32(1))) |> ignore // e.g. { $push: { <field>: { $each ... } }
+                Some elem
+
+            | SpecificCall <@ (>>) @> (_, _, [ PushEach var array (elem); Let (_, Lambda (_, GetField (_, field)), Lambda (_, SpecificCall <@ Update.sortListBy @> _)) ])
+            | SpecificCall <@ (>>) @> (_, _, [ PushEachWithModifiers var array (elem); Let (_, Lambda (_, GetField (_, field)), Lambda (_, SpecificCall <@ Update.sortListBy @> _)) ]) ->
+                // overwrite, since using last assigned value
+                elem.Value.[0].AsBsonDocument.Set("$sort", BsonDocument(field, BsonInt32(1))) |> ignore // e.g. { $push: { <field>: { $each ... } }
+                Some elem
+
+            | SpecificCall <@ (|>) @> (_, _, [ PushEach var array (elem); Let (_, Lambda (_, GetField (_, field)), Lambda (_, SpecificCall <@ Update.sortListByDescending @> _)) ])
+            | SpecificCall <@ (|>) @> (_, _, [ PushEachWithModifiers var array (elem); Let (_, Lambda (_, GetField (_, field)), Lambda (_, SpecificCall <@ Update.sortListByDescending @> _)) ]) ->
+                // overwrite, since using last assigned value
+                elem.Value.[0].AsBsonDocument.Set("$sort", BsonDocument(field, BsonInt32(-1))) |> ignore // e.g. { $push: { <field>: { $each ... } }
+                Some elem
+
+            | SpecificCall <@ (>>) @> (_, _, [ PushEach var array (elem); Let (_, Lambda (_, GetField (_, field)), Lambda (_, SpecificCall <@ Update.sortListByDescending @> _)) ])
+            | SpecificCall <@ (>>) @> (_, _, [ PushEachWithModifiers var array (elem); Let (_, Lambda (_, GetField (_, field)), Lambda (_, SpecificCall <@ Update.sortListByDescending @> _)) ]) ->
+                // overwrite, since using last assigned value
+                elem.Value.[0].AsBsonDocument.Set("$sort", BsonDocument(field, BsonInt32(-1))) |> ignore // e.g. { $push: { <field>: { $each ... } }
+                Some elem
+
+            | SpecificCall <@ (|>) @> (_, _, [ PushEachWithModifiers var array (elem); Let (_, Lambda (_, GetField (_, field)), Lambda (_, SpecificCall <@ Update.thenListBy @> _)) ])
+            | SpecificCall <@ (>>) @> (_, _, [ PushEachWithModifiers var array (elem); Let (_, Lambda (_, GetField (_, field)), Lambda (_, SpecificCall <@ Update.thenListBy @> _)) ]) ->
+                // append to $sort document
+                let sort = elem.Value.[0].AsBsonDocument.GetValue("$sort").AsBsonDocument
+                // overwrite, since using last assigned value
+                sort.Set(field, BsonInt32(1)) |> ignore
+                Some elem
+
+            | SpecificCall <@ (|>) @> (_, _, [ PushEachWithModifiers var array (elem); Let (_, Lambda (_, GetField (_, field)), Lambda (_, SpecificCall <@ Update.thenListByDescending @> _)) ])
+            | SpecificCall <@ (>>) @> (_, _, [ PushEachWithModifiers var array (elem); Let (_, Lambda (_, GetField (_, field)), Lambda (_, SpecificCall <@ Update.thenListByDescending @> _)) ]) ->
+                // append to $sort document
+                let sort = elem.Value.[0].AsBsonDocument.GetValue("$sort").AsBsonDocument
+                // overwrite, since using last assigned value
+                sort.Set(field, BsonInt32(-1)) |> ignore
+                Some elem
+
+            | _ -> None
+
         let var = v
         let field = f
 
@@ -361,46 +437,9 @@ module Quotations =
         | DeSugared var field <@ Update.addToSetEach @> ([ List (values, _) ]) ->
             BsonElement("$addToSet", BsonDocument(field, BsonDocument("$each", BsonArray(values))))
 
-        | DeSugared var field <@ Update.pushEach @> ([ List (values, _) ]) ->
-            let array =
-                try
-                    BsonArray(values |> List.map BsonValue.Create)
-                with
-                    | :? System.ArgumentException ->
-                        BsonArray(values |> List.map (fun x -> x.ToBsonDocument(x.GetType()) :> BsonValue))
+        | PushEach var field (elem) -> elem
 
-            BsonElement("$push", BsonDocument(field, BsonDocument("$each", array)))
-
-        | SpecificCall <@ (|>) @> (_, _, [ inner; Let (_, Int32(value), Lambda (_, SpecificCall <@ Update.slice @> _)) ])
-        | SpecificCall <@ (>>) @> (_, _, [ inner; Let (_, Int32(value), Lambda (_, SpecificCall <@ Update.slice @> _)) ]) ->
-            let innerElem = updateParser var field inner
-            match innerElem.Value.[0] with // e.g. { $push: { <field>: { $each ... } }
-            | :? BsonDocument as doc ->
-                doc.Add(BsonElement("$slice", BsonInt32(value))) |> ignore
-                innerElem
-
-            | _ -> failwith "expected bson document"
-
-        | SpecificCall <@ (|>) @> (_, _, [ inner; Let (_, SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]), Lambda (_, SpecificCall <@ Update.sort @> _)) ])
-        | SpecificCall <@ (>>) @> (_, _, [ inner; Let (_, SpecificCall <@ bson @> (_, _, [ Quote (Lambda (v, q)) ]), Lambda (_, SpecificCall <@ Update.sort @> _)) ]) ->
-            let nestedElem = queryParser v q
-            let nestedDoc =
-                if nestedElem.Name = "$and" then
-                    match nestedElem.Value with
-                    | :? BsonArray as arr ->
-                        BsonDocument(Seq.map (fun (doc : BsonDocument) -> doc.GetElement(0)) (arr.Values |> Seq.cast))
-
-                    | _ -> failwith "expected bson array"
-
-                else doc nestedElem
-
-            let innerElem = updateParser var field inner
-            match innerElem.Value.[0] with // e.g. { $push: { <field>: { $each ... } }
-            | :? BsonDocument as bdoc ->
-                bdoc.Add(BsonElement("$sort", nestedDoc)) |> ignore
-                innerElem
-
-            | _ -> failwith "expected bson document"
+        | PushEachWithModifiers var field (elem) -> elem
 
         | DeSugared var field <@ (&&&) @> ([ Int32 (value) ]) ->
             BsonElement("$bit", BsonDocument(field, BsonDocument("and", BsonInt32(value))))

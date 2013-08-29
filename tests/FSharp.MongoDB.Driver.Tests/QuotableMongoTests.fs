@@ -423,13 +423,14 @@ module QuotableMongo =
                 let size3 = BsonDocument([ BsonElement("length", BsonInt32(5)); BsonElement("width", BsonInt32(6)); BsonElement("height", BsonInt32(4)) ])
 
                 let query = <@ <@ fun (x : BsonDocument) -> [ x?sizes <- Update.pushEach [ size1; size2; size3 ]
-                                                                      >> Update.sort (bson <@ fun (y : BsonDocument) -> y?width = 1 @>)
+                                                                      >> Update.sortListBy (fun (y : BsonDocument) -> y?width)
+                                                                      >> Update.thenListByDescending (fun (y : BsonDocument) -> y?height)
                                                                       >> Update.slice -5 ] @> |> bson @>
 
-                let expected =
-                    <@ BsonDocument("$push", BsonDocument("sizes", BsonDocument([ BsonElement("$each", BsonArray([ size1; size2; size3 ]))
-                                                                                  BsonElement("$sort", BsonDocument("width", BsonInt32(1)))
-                                                                                  BsonElement("$slice", BsonInt32(-5)) ]))) @>
+                let expected = <@ BsonDocument("$push", BsonDocument("sizes", BsonDocument([ BsonElement("$each", BsonArray([ size1; size2; size3 ]))
+                                                                                             BsonElement("$sort", BsonDocument([ BsonElement("width", BsonInt32(1))
+                                                                                                                                 BsonElement("height", BsonInt32(-1)) ]))
+                                                                                             BsonElement("$slice", BsonInt32(-5)) ]))) @>
 
                 test <@ %query = %expected @>
 
@@ -440,13 +441,14 @@ module QuotableMongo =
                 let size3 = BsonDocument([ BsonElement("length", BsonInt32(5)); BsonElement("width", BsonInt32(6)); BsonElement("height", BsonInt32(4)) ])
 
                 let query = <@ <@ fun (x : BsonDocument) -> [ x?sizes <- x?sizes |> Update.pushEach [ size1; size2; size3 ]
-                                                                                 |> Update.sort (bson <@ fun (y : BsonDocument) -> y?width = 1 @>)
+                                                                                 |> Update.sortListBy (fun (y : BsonDocument) -> y?width)
+                                                                                 |> Update.thenListByDescending (fun (y : BsonDocument) -> y?height)
                                                                                  |> Update.slice -5 ] @> |> bson @>
 
-                let expected =
-                    <@ BsonDocument("$push", BsonDocument("sizes", BsonDocument([ BsonElement("$each", BsonArray([ size1; size2; size3 ]))
-                                                                                  BsonElement("$sort", BsonDocument("width", BsonInt32(1)))
-                                                                                  BsonElement("$slice", BsonInt32(-5)) ]))) @>
+                let expected = <@ BsonDocument("$push", BsonDocument("sizes", BsonDocument([ BsonElement("$each", BsonArray([ size1; size2; size3 ]))
+                                                                                             BsonElement("$sort", BsonDocument([ BsonElement("width", BsonInt32(1))
+                                                                                                                                 BsonElement("height", BsonInt32(-1)) ]))
+                                                                                             BsonElement("$slice", BsonInt32(-5)) ]))) @>
 
                 test <@ %query = %expected @>
 
