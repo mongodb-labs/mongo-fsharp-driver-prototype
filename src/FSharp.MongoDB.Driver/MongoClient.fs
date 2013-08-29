@@ -17,6 +17,8 @@ namespace FSharp.MongoDB.Driver
 
 open System.Net
 
+open FSharp.MongoDB.Bson.Serialization
+
 [<Interface>]
 type IMongoClient =
     abstract member GetDatabase : string -> IMongoDatabase
@@ -45,35 +47,32 @@ type MongoClient =
     new (?settings0 : Client.Settings) =
         let settings = defaultArg settings0 Client.defaultSettings
 
-        let backboneSettings =
-            { Backbone.DefaultSettings.all with Stream = settings.Stream
-                                                ConnectionPool = settings.ConnectionPool
-                                                ClusterableServer = settings.ClusterableServer }
-
-        { backbone = MongoBackbone(backboneSettings) }
+        MongoClient({ Backbone.DefaultSettings.all with Stream = settings.Stream
+                                                        ConnectionPool = settings.ConnectionPool
+                                                        ClusterableServer = settings.ClusterableServer })
 
     new (hosts : DnsEndPoint list, ?settings0 : Client.Settings) =
         let settings = defaultArg settings0 Client.defaultSettings
 
-        let backboneSettings =
-            { Backbone.DefaultSettings.all with Stream = settings.Stream
-                                                ConnectionPool = settings.ConnectionPool
-                                                ClusterableServer = settings.ClusterableServer
-                                                Hosts = hosts }
-
-        { backbone = MongoBackbone(backboneSettings) }
+        MongoClient({ Backbone.DefaultSettings.all with Stream = settings.Stream
+                                                        ConnectionPool = settings.ConnectionPool
+                                                        ClusterableServer = settings.ClusterableServer
+                                                        Hosts = hosts })
 
     new (replicaSet : string, hosts : DnsEndPoint list, ?settings0 : Client.Settings) =
         let settings = defaultArg settings0 Client.defaultSettings
 
-        let backboneSettings =
-            { Backbone.DefaultSettings.all with Stream = settings.Stream
-                                                ConnectionPool = settings.ConnectionPool
-                                                ClusterableServer = settings.ClusterableServer
-                                                Hosts = hosts
-                                                ReplicaSet = Some replicaSet }
+        MongoClient({ Backbone.DefaultSettings.all with Stream = settings.Stream
+                                                        ConnectionPool = settings.ConnectionPool
+                                                        ClusterableServer = settings.ClusterableServer
+                                                        Hosts = hosts
+                                                        ReplicaSet = Some replicaSet })
 
-        { backbone = MongoBackbone(backboneSettings) }
+    private new (settings : Backbone.AllSettings) =
+        do Conventions.register()
+        do Serializers.register()
+
+        { backbone = MongoBackbone(settings) }
 
     interface IMongoClient with
         member x.GetDatabase db = MongoDatabase(x.backbone, db) :> IMongoDatabase
