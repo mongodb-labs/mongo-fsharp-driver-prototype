@@ -28,12 +28,21 @@ type FSharpValueSerializationProvider() =
     let isOption typ = isUnion typ && typ.IsGenericType
                                    && typ.GetGenericTypeDefinition() = typedefof<_ option>
 
+    let isList typ = isUnion typ && typ.IsGenericType
+                                 && typ.GetGenericTypeDefinition() = typedefof<_ list>
+
     interface IBsonSerializationProvider with
         member __.GetSerializer(typ : System.Type) =
 
             // Check that `typ` is an option type
             if isOption typ then
                 OptionTypeSerializer(typ) :> IBsonSerializer
+
+            // Check that `typ` is a list type
+            elif isList typ then
+                typedefof<FSharpListSerializer<_>>.MakeGenericType (typ.GetGenericArguments())
+                |> System.Activator.CreateInstance
+                :?> IBsonSerializer
 
             // Check that `typ` is the overall union type, and not a particular union case
             elif isUnion typ && typ.BaseType = typeof<obj> then

@@ -57,6 +57,9 @@
     <Compile Include="Serialization/Serializers/DiscriminatedUnionSerializer.fs">
       <Link>Serialization/Serializers/DiscriminatedUnionSerializer.fs</Link>
     </Compile>
+    <Compile Include="Serialization/Serializers/FSharpListSerializer.fs">
+      <Link>Serialization/Serializers/FSharpListSerializer.fs</Link>
+    </Compile>
     <Compile Include="Serialization/Serializers/OptionTypeSerializer.fs">
       <Link>Serialization/Serializers/OptionTypeSerializer.fs</Link>
     </Compile>
