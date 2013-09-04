@@ -24,7 +24,7 @@ open Swensen.Unquote
 
 open FSharp.MongoDB.Bson.Serialization
 
-module FSharpListSerialization =
+module FSharpSetSerialization =
 
     do Conventions.register()
     do Serializers.register()
@@ -43,18 +43,18 @@ module FSharpListSerialization =
     module RecordType =
 
         type Primitive = {
-            bool : bool list
-            int : int list
-            string : string list
-            float : float list
+            bool : Set<bool>
+            int : Set<int>
+            string : Set<string>
+            float : Set<float>
         }
 
         [<Test>]
-        let ``test serialize primitive lists in record type empty``() =
-            let value = { bool = []
-                          int = []
-                          string = []
-                          float = [] }
+        let ``test serialize primitive sets in record type empty``() =
+            let value = { bool = [] |> Set.ofList<bool>
+                          int = [] |> Set.ofList<int>
+                          string = [] |> Set.ofList<string>
+                          float = [] |> Set.ofList<float> }
 
             let result = <@ serialize value @>
             let expected = <@ BsonDocument([ BsonElement("bool", BsonArray([] : bool list))
@@ -65,26 +65,26 @@ module FSharpListSerialization =
             test <@ %result = %expected @>
 
         [<Test>]
-        let ``test deserialize primitive lists in record type empty``() =
+        let ``test deserialize primitive sets in record type empty``() =
             let doc = BsonDocument([ BsonElement("bool", BsonArray([] : bool list))
                                      BsonElement("int", BsonArray([] : int list))
                                      BsonElement("string", BsonArray([] : string list))
                                      BsonElement("float", BsonArray([] : float list)) ])
 
             let result = <@ deserialize doc typeof<Primitive> @>
-            let expected = <@ { bool = []
-                                int = []
-                                string = []
-                                float = [] } @>
+            let expected = <@ { bool = [] |> Set.ofList<bool>
+                                int = [] |> Set.ofList<int>
+                                string = [] |> Set.ofList<string>
+                                float = [] |> Set.ofList<float> } @>
 
             test <@ %result = %expected @>
 
         [<Test>]
-        let ``test serialize primitive lists in record type singleton``() =
-            let value = { bool = [ false ]
-                          int = [ 0 ]
-                          string = [ "0.0" ]
-                          float = [ 0.0 ] }
+        let ``test serialize primitive sets in record type singleton``() =
+            let value = { bool = [ false ] |> Set.ofList
+                          int = [ 0 ] |> Set.ofList
+                          string = [ "0.0" ] |> Set.ofList
+                          float = [ 0.0 ] |> Set.ofList }
 
             let result = <@ serialize value @>
             let expected = <@ BsonDocument([ BsonElement("bool", BsonArray([ false ]))
@@ -95,46 +95,46 @@ module FSharpListSerialization =
             test <@ %result = %expected @>
 
         [<Test>]
-        let ``test deserialize primitive lists in record type singleton``() =
+        let ``test deserialize primitive sets in record type singleton``() =
             let doc = BsonDocument([ BsonElement("bool", BsonArray([ false ]))
                                      BsonElement("int", BsonArray([ 0 ]))
                                      BsonElement("string", BsonArray([ "0.0" ]))
                                      BsonElement("float", BsonArray([ 0.0 ])) ])
 
             let result = <@ deserialize doc typeof<Primitive> @>
-            let expected = <@ { bool = [ false ]
-                                int = [ 0 ]
-                                string = [ "0.0" ]
-                                float = [ 0.0 ] } @>
+            let expected = <@ { bool = [ false ] |> Set.ofList
+                                int = [ 0 ] |> Set.ofList
+                                string = [ "0.0" ] |> Set.ofList
+                                float = [ 0.0 ] |> Set.ofList } @>
 
             test <@ %result = %expected @>
 
         [<Test>]
-        let ``test serialize primitive lists in record type``() =
-            let value = { bool = [ true; false; false ]
-                          int = [ 1; 0; 0 ]
-                          string = [ "1.0"; "0.0"; "0.0" ]
-                          float = [ 1.0; 0.0; 0.0 ] }
+        let ``test serialize primitive sets in record type``() =
+            let value = { bool = [ true; false; false ] |> Set.ofList
+                          int = [ 1; 0; 2 ] |> Set.ofList
+                          string = [ "1.0"; "0.0"; "2.0" ] |> Set.ofList
+                          float = [ 1.0; 0.0; 2.0 ] |> Set.ofList }
 
             let result = <@ serialize value @>
-            let expected = <@ BsonDocument([ BsonElement("bool", BsonArray([ true; false; false ]))
-                                             BsonElement("int", BsonArray([ 1; 0; 0 ]))
-                                             BsonElement("string", BsonArray([ "1.0"; "0.0"; "0.0" ]))
-                                             BsonElement("float", BsonArray([ 1.0; 0.0; 0.0 ])) ]) @>
+            let expected = <@ BsonDocument([ BsonElement("bool", BsonArray([ false; true ]))
+                                             BsonElement("int", BsonArray([ 0; 1; 2 ]))
+                                             BsonElement("string", BsonArray([ "0.0"; "1.0"; "2.0" ]))
+                                             BsonElement("float", BsonArray([ 0.0; 1.0; 2.0 ])) ]) @>
 
             test <@ %result = %expected @>
 
         [<Test>]
-        let ``test deserialize primitive lists in record type``() =
+        let ``test deserialize primitive sets in record type``() =
             let doc = BsonDocument([ BsonElement("bool", BsonArray([ true; false; false ]))
-                                     BsonElement("int", BsonArray([ 1; 0; 0 ]))
-                                     BsonElement("string", BsonArray([ "1.0"; "0.0"; "0.0" ]))
-                                     BsonElement("float", BsonArray([ 1.0; 0.0; 0.0 ])) ])
+                                     BsonElement("int", BsonArray([ 1; 0; 2 ]))
+                                     BsonElement("string", BsonArray([ "1.0"; "0.0"; "2.0" ]))
+                                     BsonElement("float", BsonArray([ 1.0; 0.0; 2.0 ])) ])
 
             let result = <@ deserialize doc typeof<Primitive> @>
-            let expected = <@ { bool = [ true; false; false ]
-                                int = [ 1; 0; 0 ]
-                                string = [ "1.0"; "0.0"; "0.0" ]
-                                float = [ 1.0; 0.0; 0.0 ] } @>
+            let expected = <@ { bool = [ false; false; true ] |> Set.ofList
+                                int = [ 0; 1; 2 ] |> Set.ofList
+                                string = [ "0.0"; "1.0"; "2.0" ] |> Set.ofList
+                                float = [ 0.0; 1.0; 2.0 ] |> Set.ofList } @>
 
             test <@ %result = %expected @>

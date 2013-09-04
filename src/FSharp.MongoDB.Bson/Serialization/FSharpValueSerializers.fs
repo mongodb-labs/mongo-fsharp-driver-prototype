@@ -31,6 +31,12 @@ type FSharpValueSerializationProvider() =
     let isList typ = isUnion typ && typ.IsGenericType
                                  && typ.GetGenericTypeDefinition() = typedefof<_ list>
 
+    let isMap (typ : System.Type) =
+        typ.IsGenericType && typ.GetGenericTypeDefinition() = typedefof<Map<_, _>>
+
+    let isSet (typ : System.Type) =
+        typ.IsGenericType && typ.GetGenericTypeDefinition() = typedefof<Set<_>>
+
     interface IBsonSerializationProvider with
         member __.GetSerializer(typ : System.Type) =
 
@@ -41,6 +47,18 @@ type FSharpValueSerializationProvider() =
             // Check that `typ` is a list type
             elif isList typ then
                 typedefof<FSharpListSerializer<_>>.MakeGenericType (typ.GetGenericArguments())
+                |> System.Activator.CreateInstance
+                :?> IBsonSerializer
+
+            // Check that `typ` is a map type
+            elif isMap typ then
+                typedefof<FSharpMapSerializer<_, _>>.MakeGenericType (typ.GetGenericArguments())
+                |> System.Activator.CreateInstance
+                :?> IBsonSerializer
+
+            // Check that `typ` is a set type
+            elif isSet typ then
+                typedefof<FSharpSetSerializer< _>>.MakeGenericType (typ.GetGenericArguments())
                 |> System.Activator.CreateInstance
                 :?> IBsonSerializer
 

@@ -59,6 +59,12 @@
     <Compile Include="FSharpListSerializationTests.fs">
       <Link>FSharpListSerializationTests.fs</Link>
     </Compile>
+    <Compile Include="FSharpMapSerializationTests.fs">
+      <Link>FSharpMapSerializationTests.fs</Link>
+    </Compile>
+    <Compile Include="FSharpSetSerializationTests.fs">
+      <Link>FSharpSetSerializationTests.fs</Link>
+    </Compile>
     <None Include="packages.config" />
     <None Include="app.config" />
   </ItemGroup>

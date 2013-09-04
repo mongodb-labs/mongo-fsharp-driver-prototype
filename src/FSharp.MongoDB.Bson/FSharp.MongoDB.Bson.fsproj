@@ -60,6 +60,12 @@
     <Compile Include="Serialization/Serializers/FSharpListSerializer.fs">
       <Link>Serialization/Serializers/FSharpListSerializer.fs</Link>
     </Compile>
+    <Compile Include="Serialization/Serializers/FSharpMapSerializer.fs">
+      <Link>Serialization/Serializers/FSharpMapSerializer.fs</Link>
+    </Compile>
+    <Compile Include="Serialization/Serializers/FSharpSetSerializer.fs">
+      <Link>Serialization/Serializers/FSharpSetSerializer.fs</Link>
+    </Compile>
     <Compile Include="Serialization/Serializers/OptionTypeSerializer.fs">
       <Link>Serialization/Serializers/OptionTypeSerializer.fs</Link>
     </Compile>
