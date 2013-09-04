@@ -53,6 +53,15 @@
     <Compile Include="Properties/AssemblyInfo.fs">
       <Link>Properties/AssemblyInfo.fs</Link>
     </Compile>
+    <Compile Include="Quotations/HelperPatterns.fs">
+      <Link>Quotations/HelperPatterns.fs</Link>
+    </Compile>
+    <Compile Include="Quotations/QueryPatterns.fs">
+      <Link>Quotations/QueryPatterns.fs</Link>
+    </Compile>
+    <Compile Include="Quotations/UpdatePatterns.fs">
+      <Link>Quotations/UpdatePatterns.fs</Link>
+    </Compile>
     <Compile Include="MongoOperationSettings.fs">
       <Link>MongoOperationSettings.fs</Link>
     </Compile>

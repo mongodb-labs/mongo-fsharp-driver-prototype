@@ -28,6 +28,10 @@ open FSharp.MongoDB.Driver.Quotations
 
 module Expression =
 
+    let private queryParser = Query.parser
+
+    let private updateParser = Update.parser
+
     type IMongoQueryable<'a> =
         inherit seq<'a>
 
