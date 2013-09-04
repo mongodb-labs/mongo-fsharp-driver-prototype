@@ -44,8 +44,7 @@ module Impl =
             match q with
             | ExprShape.ShapeLambda (v, List (exprs, _)) ->
 
-                let parse expr =
-                    match expr with
+                let parse = function
                     | SetField (var, field, value) when var = v -> updateParser var field value
 
                     | SpecificCall <@ (|>) @> (_, _, [ SpecificCall <@ (|>) @> (_, _, [ Var (var); Let (_, List (values, _), Lambda (_, SpecificCall <@ Update.rename @> _)) ])
@@ -55,11 +54,20 @@ module Impl =
                             | NewTuple ([ String (left); String (right) ]) -> BsonElement(left, BsonString(right))
                             | _ -> failwith "expected (string * string) tuple"
 
-                        BsonElement("$rename", BsonDocument(List.map (unbox >> zipTransform) values))
+                        Some (BsonElement("$rename", BsonDocument(List.map (unbox >> zipTransform) values)))
 
                     | _ -> failwith "unrecognized pattern"
 
-                BsonDocument(exprs |> List.map (unbox >> parse))
+                let doc = BsonDocument()
+
+                exprs |> Seq.cast
+                      |> Seq.iter (fun q ->
+                        match parse q with
+                        | Some x -> doc.Add x |> ignore
+                        | None -> () // TODO: raise exception
+                      )
+
+                doc
 
             | _ -> failwith "expected lambda expression"
 
@@ -83,7 +91,18 @@ module Impl =
                 match body with
                 | NestedLet (fields, values) ->
                     let values = values |> List.filter (fun x -> match x with | PropertyGet _ -> false | _ -> true)
-                    BsonDocument(List.map2 (updateParser v) fields values)
+                    let elems = List.map2 (updateParser v) fields values
+
+                    let doc = BsonDocument()
+
+                    List.map2 (updateParser v) fields values
+                    |> List.iter (fun x ->
+                        match x with
+                        | Some elem -> doc.Add elem |> ignore
+                        | None -> () // TODO: raise exception
+                    )
+
+                    doc
 
                 | _ -> failwith "expected nested let or new record expression"
 

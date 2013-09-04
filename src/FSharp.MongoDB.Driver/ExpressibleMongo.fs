@@ -48,14 +48,14 @@ module Expression =
     type private TransformResult =
        | For of Expr // expr, since `cont` is unnecessary here
        | Query of (Var -> Expr -> BsonElement option) * (Var * Expr) * Expr // (fun * args * cont)
-       | Update of (Var -> string -> Expr -> BsonElement) * (Var * string * Expr) * Expr // (fun * args * cont)
+       | Update of (Var -> string -> Expr -> BsonElement option) * (Var * string * Expr) * Expr // (fun * args * cont)
        | Pass of Expr // cont
 
     [<RequireQualifiedAccess>]
     type private TraverseResult =
        | For of Expr // expr
        | Query of (Var -> Expr -> BsonElement option) * (Var * Expr) // (fun * args)
-       | Update of (Var -> string -> Expr -> BsonElement) * (Var * string * Expr) // (fun * args)
+       | Update of (Var -> string -> Expr -> BsonElement option) * (Var * string * Expr) // (fun * args)
 
     type MongoDeferredOperation =
        | Query of BsonDocument
@@ -80,7 +80,7 @@ module Expression =
 
         // Ignores inputs and returns partially applied parameter
         //      intended usage: fakeParser elem
-        let fakeParser (res : BsonElement) (var : Var) (field : string) (expr : Expr) = res
+        let fakeParser (res : BsonElement) (var : Var) (field : string) (expr : Expr) = Some res
 
         let transform (x : MongoBuilder) expr =
             let (|PushEach|_|) expr =
@@ -110,60 +110,75 @@ module Expression =
                 match expr with
                 | SpecificCall <@ x.Slice @> (_, _, [ PushEach (res); Int32 (value) ])
                 | SpecificCall <@ x.Slice @> (_, _, [ PushEachWithModifiers (res); Int32 (value) ]) ->
-                    let elem =
+                    let maybeElem =
                         match res with
                         | TransformResult.Update (f, args, cont) -> args |||> f
-                        | _ -> failwith "expected update transform result"
+                        | _ -> None
 
-                    // overwrite, since using last assigned value
-                    elem.Value.[0].AsBsonDocument.Set("$slice", BsonInt32(value)) |> ignore // e.g. { $push: { <field>: { $each ... } }
-                    Some res
+                    match maybeElem with
+                    | Some elem ->
+                        // overwrite, since using last assigned value
+                        elem.Value.[0].AsBsonDocument.Set("$slice", BsonInt32(value)) |> ignore // e.g. { $push: { <field>: { $each ... } }
+                        Some res
+                    | None -> None
 
                 | SpecificCall <@ x.SortListAscending @> (_, _, [ PushEach (res); Lambda (_, GetField (_, array)); Lambda (_, GetField (_, field)) ])
                 | SpecificCall <@ x.SortListAscending @> (_, _, [ PushEachWithModifiers (res); Lambda (_, GetField (_, array)); Lambda (_, GetField (_, field)) ]) ->
-                    let elem =
+                    let maybeElem =
                         match res with
                         | TransformResult.Update (f, args, cont) -> args |||> f
-                        | _ -> failwith "expected update transform result"
+                        | _ -> None
 
-                    // overwrite, since using last assigned value
-                    elem.Value.[0].AsBsonDocument.Set("$sort", BsonDocument(field, BsonInt32(1))) |> ignore // e.g. { $push: { <field>: { $each ... } }
-                    Some res
+                    match maybeElem with
+                    | Some elem ->
+                        // overwrite, since using last assigned value
+                        elem.Value.[0].AsBsonDocument.Set("$sort", BsonDocument(field, BsonInt32(1))) |> ignore // e.g. { $push: { <field>: { $each ... } }
+                        Some res
+                    | None -> None
 
                 | SpecificCall <@ x.SortListDescending @> (_, _, [ PushEach (res); Lambda (_, GetField (_, array)); Lambda (_, GetField (_, field)) ])
                 | SpecificCall <@ x.SortListDescending @> (_, _, [ PushEachWithModifiers (res); Lambda (_, GetField (_, array)); Lambda (_, GetField (_, field)) ]) ->
-                    let elem =
+                    let maybeElem =
                         match res with
                         | TransformResult.Update (f, args, cont) -> args |||> f
-                        | _ -> failwith "expected update transform result"
+                        | _ -> None
 
-                    // overwrite, since using last assigned value
-                    elem.Value.[0].AsBsonDocument.Set("$sort", BsonDocument(field, BsonInt32(-1))) |> ignore // e.g. { $push: { <field>: { $each ... } }
-                    Some res
+                    match maybeElem with
+                    | Some elem ->
+                        // overwrite, since using last assigned value
+                        elem.Value.[0].AsBsonDocument.Set("$sort", BsonDocument(field, BsonInt32(-1))) |> ignore // e.g. { $push: { <field>: { $each ... } }
+                        Some res
+                    | None -> None
 
                 | SpecificCall <@ x.ThenSortListAscending @> (_, _, [ PushEachWithModifiers (res); Lambda (_, GetField (_, array)); Lambda (_, GetField (_, field)) ]) ->
-                    let elem =
+                    let maybeElem =
                         match res with
                         | TransformResult.Update (f, args, cont) -> args |||> f
                         | _ -> failwith "expected update transform result"
 
-                    // append to $sort document
-                    let sort = elem.Value.[0].AsBsonDocument.GetValue("$sort").AsBsonDocument
-                    // overwrite, since using last assigned value
-                    sort.Set(field, BsonInt32(1)) |> ignore
-                    Some res
+                    match maybeElem with
+                    | Some elem ->
+                        // append to $sort document
+                        let sort = elem.Value.[0].AsBsonDocument.GetValue("$sort").AsBsonDocument
+                        // overwrite, since using last assigned value
+                        sort.Set(field, BsonInt32(1)) |> ignore
+                        Some res
+                    | None -> None
 
                 | SpecificCall <@ x.ThenSortListDescending @> (_, _, [ PushEachWithModifiers (res); Lambda (_, GetField (_, array)); Lambda (_, GetField (_, field)) ]) ->
-                    let elem =
+                    let maybeElem =
                         match res with
                         | TransformResult.Update (f, args, cont) -> args |||> f
-                        | _ -> failwith "expected update transform result"
+                        | _ -> None
 
-                    // append to $sort document
-                    let sort = elem.Value.[0].AsBsonDocument.GetValue("$sort").AsBsonDocument
-                    // overwrite, since using last assigned value
-                    sort.Set(field, BsonInt32(-1)) |> ignore
-                    Some res
+                    match maybeElem with
+                    | Some elem ->
+                        // append to $sort document
+                        let sort = elem.Value.[0].AsBsonDocument.GetValue("$sort").AsBsonDocument
+                        // overwrite, since using last assigned value
+                        sort.Set(field, BsonInt32(-1)) |> ignore
+                        Some res
+                    | None -> None
 
                 | _ -> None
 
@@ -399,8 +414,9 @@ module Expression =
                     | TraverseResult.Update (f, x) ->
                         isUpdate := true
 
-                        let elem = x |||> f
-                        updateDoc.Add elem |> ignore
+                        match x |||> f with
+                        | Some elem -> updateDoc.Add elem |> ignore
+                        | None -> () // REVIEW: raise an exception?
                     )
 
             match expr with
