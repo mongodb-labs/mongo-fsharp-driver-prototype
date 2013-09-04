@@ -45,26 +45,21 @@ module Query =
 
     let size (x : int) y : bool = invalidOp "not implemented"
 
-    let private doc (elem : BsonElement) = BsonDocument elem
+    let private toDoc (elem : BsonElement) = BsonDocument elem
 
     let rec internal parser v q =
-        let (|Comparison|_|) op expr =
-            match expr with
-            | InfixOp op (GetField (var, field), value) when var = v ->
-                match value with
-                | Value (value, _) -> Some(field, value)
-                | List (values, _) -> Some(field, box values)
-                | _ -> None
+        let (|Comparison|_|) op = function
+            | InfixOp op (GetField (var, field), ValueOrList (value, _)) when var = v ->
+                Some(field, value)
             | _ -> None
 
         match q with
-        | InfixOp <@ (=) @> (SpecificCall <@ (%) @> (_, _, [ GetField (var, field)
-                                                             Value (divisor, _) ]),
-                             Value (remainder, _)) when var = v ->
-            BsonElement(field, BsonDocument("$mod", BsonArray([ divisor; remainder ])))
-
         | Comparison <@ (=) @> (field, value) ->
             BsonElement(field, BsonValue.Create value)
+
+        | InfixOp <@ (=) @> (InfixOp <@ (%) @> (GetField (var, field), Int32 (divisor)),
+                             Int32 (remainder)) when var = v ->
+            BsonElement(field, BsonDocument("$mod", BsonArray([ divisor; remainder ])))
 
         | Comparison <@ (<>) @> (field, value) ->
             BsonElement(field, BsonDocument("$ne", BsonValue.Create value))
@@ -90,7 +85,7 @@ module Query =
 
         | CallForwardPipe (Var (var), expr) when var = v ->
             match expr with
-            | Let (_, String(js), Lambda (_, SpecificCall <@ where @> _)) ->
+            | Let (_, String (js), Lambda (_, SpecificCall <@ where @> _)) ->
                 BsonElement("$where", BsonString(js))
 
             | _ -> failwith "unrecognized expression"
@@ -112,32 +107,35 @@ module Query =
             | Lambda(_, SpecificCall <@ nexists @> _) ->
                 BsonElement(field, BsonDocument("$exists", BsonBoolean(false)))
 
-            | Let (_, Value(value, _), Lambda (_, SpecificCall <@ type' @> _)) ->
+            | Let (_, Value (value, _), Lambda (_, SpecificCall <@ type' @> _)) ->
                 let typ = value :?> BsonType
                 BsonElement(field, BsonDocument("$type", BsonValue.Create typ))
 
             | Let (_, Lambda (v, q), Lambda (_, SpecificCall <@ elemMatch @> _)) ->
-                let nestedElem = parser v q
-                let nestedDoc =
-                    if nestedElem.Name = "$and" then
-                        match nestedElem.Value with
-                        | :? BsonArray as arr ->
-                            BsonDocument(Seq.map (fun (doc : BsonDocument) -> doc.GetElement(0)) (arr.Values |> Seq.cast))
+                let elem = parser v q
+                let doc =
+                    if elem.Name = "$and" then // { $and: [ cond1; cond2; ... ] } -> { cond1, cond2, ... }
+                        elem.Value.AsBsonArray.Values
+                        |> Seq.cast
+                        |> Seq.map (fun (x : BsonDocument) -> x.GetElement 0)
+                        |> (fun x -> BsonDocument x)
 
-                        | _ -> failwith "expected bson array"
+                    else toDoc elem
 
-                    else doc nestedElem
+                BsonElement(field, BsonDocument("$elemMatch", doc))
 
-                BsonElement(field, BsonDocument("$elemMatch", nestedDoc))
-
-            | Let (_, Int32(value), Lambda(_, SpecificCall <@ size @> _)) ->
+            | Let (_, Int32 (value), Lambda(_, SpecificCall <@ size @> _)) ->
                 BsonElement(field, BsonDocument("$size", BsonInt32(value)))
 
             | _ -> failwith "unrecognized expression"
 
         | SpecificCall <@ nor @> (_, _, [ List (exprs, _) ]) ->
-            let elems = exprs |> List.map (fun q -> parser v (unbox q))
-            BsonElement("$nor", BsonArray(elems |> List.map doc))
+            let elems =
+                exprs
+                |> Seq.cast
+                |> Seq.map (fun q -> parser v q)
+                |> Seq.map toDoc
+            BsonElement("$nor", BsonArray(elems))
 
         | SpecificCall <@ not @> (_, _, [ expr ]) ->
             let elem = parser v expr
@@ -149,25 +147,19 @@ module Query =
             let rhsElem = parser v rhs
 
             if lhsElem.Name = "$and" then
-                match lhsElem.Value with
-                | :? BsonArray as value ->
-                    value.Add(doc rhsElem) |> ignore
-                    lhsElem
-                | _ -> failwith "expected bson array"
+                lhsElem.Value.AsBsonArray.Add(toDoc rhsElem) |> ignore
+                lhsElem
 
-            else BsonElement("$and", BsonArray([ doc lhsElem; doc rhsElem ]))
+            else BsonElement("$and", BsonArray([ lhsElem; rhsElem ] |> Seq.map toDoc))
 
         | OrElse (lhs, rhs) ->
             let lhsElem = parser v lhs
             let rhsElem = parser v rhs
 
             if lhsElem.Name = "$or" then
-                match lhsElem.Value with
-                | :? BsonArray as value ->
-                    value.Add(doc rhsElem) |> ignore
-                    lhsElem
-                | _ -> failwith "expected bson array"
+                lhsElem.Value.AsBsonArray.Add(toDoc rhsElem) |> ignore
+                lhsElem
 
-            else BsonElement("$or", BsonArray([ doc lhsElem; doc rhsElem ]))
+            else BsonElement("$or", BsonArray([ lhsElem; rhsElem ] |> Seq.map toDoc))
 
         | _ -> invalidOp "unrecognized pattern"
