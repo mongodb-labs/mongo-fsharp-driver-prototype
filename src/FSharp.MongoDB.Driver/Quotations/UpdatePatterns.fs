@@ -181,8 +181,9 @@ module Update =
             BsonElement("$pop", BsonDocument(field, BsonInt32(1)))
 
         | DeSugared var field <@ pull @> ([ Lambda (v, q) ]) ->
-            let nestedElem = queryParser v q
-            BsonElement("$pull", BsonDocument(field, doc nestedElem))
+            match queryParser v q with
+            | Some nestedElem -> BsonElement("$pull", BsonDocument(field, doc nestedElem))
+            | None -> failwithf "unable to parse query\n%A" q
 
         | DeSugared var field <@ pullAll @> ([ List (values, _) ]) ->
             BsonElement("$pullAll", BsonDocument(field, BsonArray(values)))

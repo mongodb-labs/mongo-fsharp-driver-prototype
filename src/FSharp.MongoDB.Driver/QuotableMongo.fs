@@ -33,7 +33,11 @@ module Impl =
         match box q with
         | :? Expr<'a -> bool> as q ->
             match q with
-            | ExprShape.ShapeLambda (v, body) -> BsonDocument(queryParser v body)
+            | ExprShape.ShapeLambda (v, body) ->
+                match queryParser v body with
+                | Some x -> BsonDocument x
+                | None -> failwithf "unable to parse query\n%A" body
+
             | _ -> failwith "expected lambda expression"
 
         | :? Expr<'a -> unit list> as q ->

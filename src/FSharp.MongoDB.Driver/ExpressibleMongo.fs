@@ -47,14 +47,14 @@ module Expression =
     [<RequireQualifiedAccess>]
     type private TransformResult =
        | For of Expr // expr, since `cont` is unnecessary here
-       | Query of (Var -> Expr -> BsonElement) * (Var * Expr) * Expr // (fun * args * cont)
+       | Query of (Var -> Expr -> BsonElement option) * (Var * Expr) * Expr // (fun * args * cont)
        | Update of (Var -> string -> Expr -> BsonElement) * (Var * string * Expr) * Expr // (fun * args * cont)
        | Pass of Expr // cont
 
     [<RequireQualifiedAccess>]
     type private TraverseResult =
        | For of Expr // expr
-       | Query of (Var -> Expr -> BsonElement) * (Var * Expr) // (fun * args)
+       | Query of (Var -> Expr -> BsonElement option) * (Var * Expr) // (fun * args)
        | Update of (Var -> string -> Expr -> BsonElement) * (Var * string * Expr) // (fun * args)
 
     type MongoDeferredOperation =
@@ -262,9 +262,13 @@ module Expression =
                     | GetProperty (var, field) -> (var, field, body)
                     | _ -> failwithf "unrecognized expression\n%A" body
 
-                let elem = BsonElement("$pull", BsonDocument(field, BsonDocument(queryParser lambdaVar lambdaExpr)))
-                let res = TransformResult.Update (fakeParser elem, (var, field, body), cont)
-                Some res
+                match queryParser lambdaVar lambdaExpr with
+                | Some lambdaElem ->
+                    let elem = BsonElement("$pull", BsonDocument(field, BsonDocument(lambdaElem)))
+                    let res = TransformResult.Update (fakeParser elem, (var, field, body), cont)
+                    Some res
+
+                | None -> None
 
             | SpecificCall <@ x.PullAll @> (_, _, [ cont; Lambda (_, body); ValueOrList (value, _) ]) ->
                 let (var, field, body) =
@@ -388,8 +392,9 @@ module Expression =
                             | None -> None
 
                     | TraverseResult.Query (f, x) ->
-                        let elem = x ||> f
-                        queryDoc.Add elem |> ignore
+                        match x ||> f with
+                        | Some elem -> queryDoc.Add elem |> ignore
+                        | None -> () // REVIEW: raise an exception?
 
                     | TraverseResult.Update (f, x) ->
                         isUpdate := true

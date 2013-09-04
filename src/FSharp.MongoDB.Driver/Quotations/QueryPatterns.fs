@@ -55,111 +55,133 @@ module Query =
 
         match q with
         | Comparison <@ (=) @> (field, value) ->
-            BsonElement(field, BsonValue.Create value)
+            Some (BsonElement(field, BsonValue.Create value))
 
         | InfixOp <@ (=) @> (InfixOp <@ (%) @> (GetField (var, field), Int32 (divisor)),
                              Int32 (remainder)) when var = v ->
-            BsonElement(field, BsonDocument("$mod", BsonArray([ divisor; remainder ])))
+            Some (BsonElement(field, BsonDocument("$mod", BsonArray([ divisor; remainder ]))))
 
         | Comparison <@ (<>) @> (field, value) ->
-            BsonElement(field, BsonDocument("$ne", BsonValue.Create value))
+            Some (BsonElement(field, BsonDocument("$ne", BsonValue.Create value)))
 
         | Comparison <@ (>) @> (field, value) ->
-            BsonElement(field, BsonDocument("$gt", BsonValue.Create value))
+            Some (BsonElement(field, BsonDocument("$gt", BsonValue.Create value)))
 
         | Comparison <@ (>=) @> (field, value) ->
-            BsonElement(field, BsonDocument("$gte", BsonValue.Create value))
+            Some (BsonElement(field, BsonDocument("$gte", BsonValue.Create value)))
 
         | Comparison <@ (<) @> (field, value) ->
-            BsonElement(field, BsonDocument("$lt", BsonValue.Create value))
+            Some (BsonElement(field, BsonDocument("$lt", BsonValue.Create value)))
 
         | Comparison <@ (<=) @> (field, value) ->
-            BsonElement(field, BsonDocument("$lte", BsonValue.Create value))
+            Some (BsonElement(field, BsonDocument("$lte", BsonValue.Create value)))
 
         | InfixOp <@ (=~) @> (GetField (var, field), String (pcre)) when var = v ->
             let index = pcre.LastIndexOf('/')
             let regex = pcre.Substring(1, index - 1)
             let options = pcre.Substring(index + 1)
-            BsonElement(field, BsonDocument([ BsonElement("$regex", BsonString(regex))
-                                              BsonElement("$options", BsonString(options)) ]))
+            Some (BsonElement(field, BsonDocument([ BsonElement("$regex", BsonString(regex))
+                                                    BsonElement("$options", BsonString(options)) ])))
 
         | CallForwardPipe (Var (var), expr) when var = v ->
             match expr with
             | Let (_, String (js), Lambda (_, SpecificCall <@ where @> _)) ->
-                BsonElement("$where", BsonString(js))
+                Some (BsonElement("$where", BsonString(js)))
 
-            | _ -> failwith "unrecognized expression"
+            | _ -> None
 
         | CallForwardPipe (GetField (var, field), expr) when var = v ->
             match expr with
             | Let (_, List (value, _), Lambda (_, SpecificCall <@ all @> _)) ->
-                BsonElement(field, BsonDocument("$all", BsonValue.Create value))
+                Some (BsonElement(field, BsonDocument("$all", BsonValue.Create value)))
 
             | Let (_, List (value, _), Lambda (_, SpecificCall <@ in' @> _)) ->
-                BsonElement(field, BsonDocument("$in", BsonValue.Create value))
+                Some (BsonElement(field, BsonDocument("$in", BsonValue.Create value)))
 
             | Let (_, List (value, _), Lambda (_, SpecificCall <@ nin @> _)) ->
-                BsonElement(field, BsonDocument("$nin", BsonValue.Create value))
+                Some (BsonElement(field, BsonDocument("$nin", BsonValue.Create value)))
 
             | Lambda(_, SpecificCall <@ exists @> _) ->
-                BsonElement(field, BsonDocument("$exists", BsonBoolean(true)))
+                Some (BsonElement(field, BsonDocument("$exists", BsonBoolean(true))))
 
             | Lambda(_, SpecificCall <@ nexists @> _) ->
-                BsonElement(field, BsonDocument("$exists", BsonBoolean(false)))
+                Some (BsonElement(field, BsonDocument("$exists", BsonBoolean(false))))
 
             | Let (_, Value (value, _), Lambda (_, SpecificCall <@ type' @> _)) ->
                 let typ = value :?> BsonType
-                BsonElement(field, BsonDocument("$type", BsonValue.Create typ))
+                Some (BsonElement(field, BsonDocument("$type", BsonValue.Create typ)))
 
             | Let (_, Lambda (v, q), Lambda (_, SpecificCall <@ elemMatch @> _)) ->
-                let elem = parser v q
-                let doc =
-                    if elem.Name = "$and" then // { $and: [ cond1; cond2; ... ] } -> { cond1, cond2, ... }
-                        elem.Value.AsBsonArray.Values
-                        |> Seq.cast
-                        |> Seq.map (fun (x : BsonDocument) -> x.GetElement 0)
-                        |> (fun x -> BsonDocument x)
+                match parser v q with
+                | Some elem ->
+                    let doc =
+                        if elem.Name = "$and" then // { $and: [ cond1; cond2; ... ] } -> { cond1, cond2, ... }
+                            elem.Value.AsBsonArray.Values
+                            |> Seq.cast
+                            |> Seq.map (fun (x : BsonDocument) -> x.GetElement 0)
+                            |> (fun x -> BsonDocument x)
 
-                    else toDoc elem
+                        else toDoc elem
 
-                BsonElement(field, BsonDocument("$elemMatch", doc))
+                    Some (BsonElement(field, BsonDocument("$elemMatch", doc)))
+
+                | None -> None
 
             | Let (_, Int32 (value), Lambda(_, SpecificCall <@ size @> _)) ->
-                BsonElement(field, BsonDocument("$size", BsonInt32(value)))
+                Some (BsonElement(field, BsonDocument("$size", BsonInt32(value))))
 
-            | _ -> failwith "unrecognized expression"
+            | _ -> None
 
         | SpecificCall <@ nor @> (_, _, [ List (exprs, _) ]) ->
-            let elems =
-                exprs
-                |> Seq.cast
-                |> Seq.map (fun q -> parser v q)
-                |> Seq.map toDoc
-            BsonElement("$nor", BsonArray(elems))
+            let elems = exprs |> Seq.cast
+                              |> Seq.fold (fun res q ->
+                                match res with
+                                | Some tail ->
+                                    match parser v q with
+                                    | Some elem -> Some (toDoc elem :: tail)
+                                    | None -> None
+                                | None -> None) (Some [])
+                              |> Option.map List.rev
+
+            match elems with
+            | Some x -> Some (BsonElement("$nor", BsonArray(x)))
+            | None -> None
 
         | SpecificCall <@ not @> (_, _, [ expr ]) ->
-            let elem = parser v expr
-            elem.Value <- BsonDocument("$not", elem.Value)
-            elem
+            match parser v expr with
+            | Some elem ->
+                elem.Value <- BsonDocument("$not", elem.Value)
+                Some elem
+            | None -> None
 
         | AndAlso (lhs, rhs) ->
-            let lhsElem = parser v lhs
-            let rhsElem = parser v rhs
+            match parser v lhs with
+            | Some lhsElem ->
+                match parser v rhs with
+                | Some rhsElem ->
+                    if lhsElem.Name = "$and" then
+                        lhsElem.Value.AsBsonArray.Add(toDoc rhsElem) |> ignore
+                        Some lhsElem
 
-            if lhsElem.Name = "$and" then
-                lhsElem.Value.AsBsonArray.Add(toDoc rhsElem) |> ignore
-                lhsElem
+                    else Some (BsonElement("$and", BsonArray([ lhsElem; rhsElem ] |> Seq.map toDoc)))
 
-            else BsonElement("$and", BsonArray([ lhsElem; rhsElem ] |> Seq.map toDoc))
+                | None -> None
+
+            | None -> None
 
         | OrElse (lhs, rhs) ->
-            let lhsElem = parser v lhs
-            let rhsElem = parser v rhs
+            match parser v lhs with
+            | Some lhsElem ->
+                match parser v rhs with
+                | Some rhsElem ->
+                    if lhsElem.Name = "$or" then
+                        lhsElem.Value.AsBsonArray.Add(toDoc rhsElem) |> ignore
+                        Some lhsElem
 
-            if lhsElem.Name = "$or" then
-                lhsElem.Value.AsBsonArray.Add(toDoc rhsElem) |> ignore
-                lhsElem
+                    else Some (BsonElement("$or", BsonArray([ lhsElem; rhsElem ] |> Seq.map toDoc)))
 
-            else BsonElement("$or", BsonArray([ lhsElem; rhsElem ] |> Seq.map toDoc))
+                | None -> None
 
-        | _ -> invalidOp "unrecognized pattern"
+            | None -> None
+
+        | _ -> None
