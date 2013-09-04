@@ -46,8 +46,7 @@ module internal Helpers =
     let private makeGenericListType typ =
         typedefof<list<_>>.MakeGenericType [| typ |]
 
-    let rec (|List|_|) expr =
-        match expr with
+    let rec (|List|_|) = function
         | NewUnionCase (uci, args) when isListUnionCase uci ->
             match args with
             | [ Value (head, typ); List (tail, _) ] -> Some (head :: tail, typ)
@@ -58,72 +57,67 @@ module internal Helpers =
 
         | _ -> None
 
-    let (|ValueOrList|_|) expr =
-        match expr with
+    let (|ValueOrList|_|) = function
         | Value (value, typ) -> Some (value, typ)
         | List (values, typ) -> Some (box values, makeGenericListType typ)
         | _ -> None
 
-    let rec (|GetProperty|_|) expr =
-        match expr with
-        | PropertyGet (Some(Var (var)), prop, []) ->
-            Some(var, prop.Name)
+    let rec (|GetProperty|_|) = function
+        | PropertyGet (Some (Var (var)), prop, []) ->
+            Some (var, prop.Name)
 
-        | PropertyGet (Some(GetProperty (var, subdoc)), prop, []) ->
-            Some(var, sprintf "%s.%s" subdoc prop.Name)
+        | PropertyGet (Some (GetProperty (var, subdoc)), prop, []) ->
+            Some (var, sprintf "%s.%s" subdoc prop.Name)
 
         | _ -> None
 
-    let rec (|CallDynamic|_|) expr =
-        match expr with
+    let rec (|CallDynamic|_|) = function
         | SpecificCall <@ (?) @> (_, _, [ Var (var); String (field) ])
         | Coerce (CallDynamic (var, field), _) ->
-            Some(var, field)
+            Some (var, field)
 
         | SpecificCall <@ (?) @> (_, _, [ CallDynamic (var, subdoc); String (field) ])
         | SpecificCall <@ (?) @> (_, _, [ GetProperty (var, subdoc); String (field) ]) ->
-            Some(var, sprintf "%s.%s" subdoc field)
+            Some (var, sprintf "%s.%s" subdoc field)
 
         | _ -> None
 
-    let (|GetField|_|) expr =
-        match expr with
-        | CallDynamic (var, field) -> Some(var, field)
-        | GetProperty (var, field) -> Some(var, field)
+    let (|GetField|_|) = function
+        | CallDynamic (var, field) -> Some (var, field)
+        | GetProperty (var, field) -> Some (var, field)
         | _ -> None
 
-    let (|CallDynamicAssignment|_|) expr =
-        match expr with
+    let (|CallDynamicAssignment|_|) = function
         | SpecificCall <@ (?<-) @> (_, _, [ Var (var); String (field); value ]) ->
-            Some(var, field, value)
+            Some (var, field, value)
 
         | SpecificCall <@ (?<-) @> (_, _, [ GetField (var, subdoc); String (field); value ]) ->
-            Some(var, sprintf "%s.%s" subdoc field, value)
+            Some (var, sprintf "%s.%s" subdoc field, value)
 
         | _ -> None
 
-    let (|SetProperty|_|) expr =
-        match expr with
-        | PropertySet (Some(Var (var)), prop, [], value) ->
-            Some(var, prop.Name, value)
+    let (|SetProperty|_|) = function
+        | PropertySet (Some (Var (var)), prop, [], value) ->
+            Some (var, prop.Name, value)
 
-        | PropertySet (Some(GetProperty (var, subdoc)), prop, [], value) ->
-            Some(var, sprintf "%s.%s" subdoc prop.Name, value)
+        | PropertySet (Some (GetProperty (var, subdoc)), prop, [], value) ->
+            Some (var, sprintf "%s.%s" subdoc prop.Name, value)
 
         | _ -> None
 
-    let (|SetField|_|) expr =
-        match expr with
-        | CallDynamicAssignment (var, field, value) -> Some(var, field, value)
-        | SetProperty (var, field, value) -> Some(var, field, value)
+    let (|SetField|_|) = function
+        | CallDynamicAssignment (var, field, value) -> Some (var, field, value)
+        | SetProperty (var, field, value) -> Some (var, field, value)
         | _ -> None
 
-    let (|CallForwardPipe|_|) expr =
-        match expr with
-        | SpecificCall <@ (|>) @> (_, _, [ x; f ]) -> Some(x, f)
+    let (|InfixOp|_|) op = function
+        | SpecificCall <@ %op @> (_, _, [ lhs; rhs ]) -> Some (lhs, rhs)
         | _ -> None
 
-    let (|InfixOp|_|) op expr =
-        match expr with
-        | SpecificCall <@ %op @> (_, _, [ lhs; rhs ]) -> Some(lhs, rhs)
+    let (|CallForwardPipe|_|) = function
+        | InfixOp <@ (|>) @> (x, f) -> Some (x, f)
+        | _ -> None
+
+    let (|CallForwardCompose|_|) = function
+        | InfixOp <@ (>>) @> (x, f) -> Some (x, f)
         | _ -> None
