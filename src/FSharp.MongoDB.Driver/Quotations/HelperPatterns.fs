@@ -23,7 +23,7 @@ open Microsoft.FSharp.Reflection
 open MongoDB.Bson
 
 [<AutoOpen>]
-module Helpers =
+module CustomOps =
 
     let (?) (doc : BsonDocument) (field : string) =
         unbox doc.[field]
@@ -34,21 +34,34 @@ module Helpers =
     let (=~) input pattern =
         System.Text.RegularExpressions.Regex.IsMatch(input, pattern)
 
+[<AutoOpen>]
+module internal Helpers =
+
     let inline isGenericTypeDefinedFrom<'a> (typ : System.Type) =
         typ.IsGenericType && typ.GetGenericTypeDefinition() = typedefof<'a>
 
     let inline isListUnionCase (uci : UnionCaseInfo) =
         uci.DeclaringType |> isGenericTypeDefinedFrom<list<_>>
 
+    let private makeGenericListType typ =
+        typedefof<list<_>>.MakeGenericType [| typ |]
+
     let rec (|List|_|) expr =
         match expr with
         | NewUnionCase (uci, args) when isListUnionCase uci ->
             match args with
-            | [] -> Some([], typeof<unit>)
-            | [ Value (head, typ); List (tail, _) ] -> Some(head :: tail, typ)
-            | [ head; List (tail, _) ] -> Some(box head :: tail, typeof<Expr>)
-            | _ -> failwith "unexpected list union case"
+            | [ Value (head, typ); List (tail, _) ] -> Some (head :: tail, typ)
+            | [ List (head, typ); List (tail, _) ] -> Some (box head :: tail, makeGenericListType typ)
+            | [ head; List (tail, _) ] -> Some (box head :: tail, typeof<Expr>)
+            | [] -> Some ([], typedefof<_>)
+            | _ -> None
 
+        | _ -> None
+
+    let (|ValueOrList|_|) expr =
+        match expr with
+        | Value (value, typ) -> Some (value, typ)
+        | List (values, typ) -> Some (box values, makeGenericListType typ)
         | _ -> None
 
     let rec (|GetProperty|_|) expr =

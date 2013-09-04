@@ -77,25 +77,6 @@ module Expression =
                 | None -> Expr.Call(info, args)
             | _ -> failwith "unable to acquire methodinfo"
 
-        let rec (|List|_|) expr =
-            let makeGenericListType typ =
-                typedefof<list<_>>.MakeGenericType [| typ |]
-
-            match expr with
-            | NewUnionCase (uci, args) when isListUnionCase uci ->
-                match args with
-                | [] -> Some([], typeof<unit>)
-                | [ Value (head, typ); List (tail, _) ] -> Some (head :: tail, typ)
-                | [ List (head, typ); List (tail, _) ] -> Some (box head :: tail, makeGenericListType typ)
-                | _ -> failwith "unexpected list union case"
-
-            | _ -> None
-
-        let (|ValueOrList|_|) expr =
-            match expr with
-            | Value (value, typ) -> Some (value, typ)
-            | List (values, typ) -> Some (box values, typ)
-            | _ -> None
 
         // Ignores inputs and returns partially applied parameter
         //      intended usage: fakeParser elem
