@@ -63,7 +63,11 @@ module Impl =
                 exprs |> Seq.cast
                       |> Seq.iter (fun q ->
                         match parse q with
-                        | Some x -> doc.Add x |> ignore
+                        | Some elem ->
+                            if not (doc.Contains elem.Name) then
+                                doc.Add (elem.Name, BsonDocument()) |> ignore
+
+                            doc.[elem.Name].AsBsonDocument.AddRange elem.Value.AsBsonDocument |> ignore
                         | None -> () // TODO: raise exception
                       )
 
@@ -98,7 +102,11 @@ module Impl =
                     List.map2 (updateParser v) fields values
                     |> List.iter (fun x ->
                         match x with
-                        | Some elem -> doc.Add elem |> ignore
+                        | Some elem ->
+                            if not (doc.Contains elem.Name) then
+                                doc.Add (elem.Name, BsonDocument()) |> ignore
+
+                            doc.[elem.Name].AsBsonDocument.AddRange elem.Value.AsBsonDocument |> ignore
                         | None -> () // TODO: raise exception
                     )
 
