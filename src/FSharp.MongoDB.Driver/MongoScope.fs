@@ -27,11 +27,13 @@ open MongoDB.Driver.Core.Protocol.Messages
 [<AutoOpen>]
 module private Helpers =
 
+    // version of BsonDocument.Add that can be chained in a pipeline.
     let addElem name value (doc : BsonDocument) =
         match value with
         | Some x -> doc.Add(name, BsonValue.Create x)
         | None -> doc
 
+    // prepares a $query enclosed query document
     let makeQueryDoc query sort (options : Scope.QueryOptions) =
         match sort with
         | None when options = Scope.DefaultOptions.queryOptions ->
@@ -53,6 +55,7 @@ module private Helpers =
 
             | None -> failwith "unset query"
 
+    // prepares a text search document
     let makeTextSearchDoc clctn text query project limit (options : Scope.TextSearchOptions) =
         BsonDocument([ BsonElement("text", BsonString(clctn))
                        BsonElement("search", BsonString(text))
@@ -61,6 +64,9 @@ module private Helpers =
         |> addElem "project" project
         |> addElem "language" options.Language
 
+/// Represents a view over a particular collection.
+/// Immutable structure that is able to be chained with other methods
+/// that can invoke operations against the database.
 type Scope<'DocType> = private {
     Backbone : MongoBackbone
     Database : string
@@ -77,7 +83,9 @@ type Scope<'DocType> = private {
     ReadPreference : ReadPreference
     WriteOptions : Scope.WriteOptions
 } with
-    member x.Get (?flags0) =
+    /// Executes the find operation with the previously supplied settings.
+    /// Returns an enumerator for explicit iteration, rather than use in a for loop.
+    member x.Get (?flags0) = // TODO: change to take a CursorOptions instance
         let flags = defaultArg flags0 QueryFlags.None
 
         let backbone = x.Backbone

@@ -19,6 +19,10 @@ open Microsoft.FSharp.Reflection
 
 open MongoDB.Bson.Serialization.Conventions
 
+/// <summary>
+/// Convention for option types that writes the value in the <c>Some</c> case
+/// and omits the field in the <c>None</c> case.
+/// </summary>
 type OptionTypeConvention() =
     inherit ConventionBase("F# Option Type")
 

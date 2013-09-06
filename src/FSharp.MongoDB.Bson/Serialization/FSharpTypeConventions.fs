@@ -21,11 +21,13 @@ open FSharp.MongoDB.Bson.Serialization.Conventions
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 [<RequireQualifiedAccess>]
+/// Entry point to initialize the F# data type conventions.
 module Conventions =
 
     let mutable private registered = false
 
     [<CompiledName("Register")>]
+    /// Registers the conventions for F# data types.
     let register() =
         if not registered then
             registered <- true

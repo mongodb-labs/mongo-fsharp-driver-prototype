@@ -32,19 +32,39 @@ module Expression =
 
     let private updateParser = Update.parser
 
+    /// <summary>
+    /// An input into a query operation.
+    /// This type is used to support the MongoDB query syntax.
+    /// </summary>
     type IMongoQueryable<'a> =
         inherit seq<'a>
 
+    /// <summary>
+    /// An input into a update operation.
+    /// This type is used to support the MongoDB update syntax.
+    /// </summary>
     type IMongoUpdatable<'a> =
         inherit seq<'a>
 
+    /// <summary>
+    /// An input into a update operation.
+    /// This type is used to support the MongoDB <c>$each</c> update syntax.
+    /// </summary>
     type IMongoEachUpdatable<'a> =
         inherit IMongoUpdatable<'a>
 
+    /// <summary>
+    /// A result of a query or update operation.
+    /// This type is used to return the expressions as <c>BsonDocument</c>s,
+    /// rather than actually executing against the database.
+    /// </summary>
     type IMongoDeferrable<'a> =
         inherit seq<'a>
 
+    // TODO: add find and modify case
+
     [<RequireQualifiedAccess>]
+    /// Represents different possible results from transforming a quotation.
     type private TransformResult =
        | For of Expr // expr, since `cont` is unnecessary here
        | Query of (Var -> Expr -> BsonElement option) * (Var * Expr) * Expr // (fun * args * cont)
@@ -52,21 +72,27 @@ module Expression =
        | Pass of Expr // cont
 
     [<RequireQualifiedAccess>]
+    /// Represents different possible results from traversing a quotation.
     type private TraverseResult =
        | For of Expr // expr
        | Query of (Var -> Expr -> BsonElement option) * (Var * Expr) // (fun * args)
        | Update of (Var -> string -> Expr -> BsonElement option) * (Var * string * Expr) // (fun * args)
 
+    /// Represents different operation cases from using the `defer` keyword.
     type MongoDeferredOperation =
        | Query of BsonDocument
        | Update of BsonDocument * BsonDocument
 
     [<RequireQualifiedAccess>]
+    /// Represents different cases from the overall `mongo { ... }` expression.
     type MongoOperationResult<'a> =
        | Query of Scope<'a>
        | Update of WriteConcernResult
        | Deferred of MongoDeferredOperation
 
+    /// <summary>
+    /// The type used to support the MongoDB query and update syntax from F#.
+    /// </summary>
     type MongoBuilder() =
 
         let mkCall op args =
@@ -76,7 +102,6 @@ module Expression =
                 | Some x -> Expr.Call(x, info, args)
                 | None -> Expr.Call(info, args)
             | _ -> failwith "unable to acquire methodinfo"
-
 
         // Ignores inputs and returns partially applied parameter
         //      intended usage: fakeParser elem
@@ -382,6 +407,9 @@ module Expression =
         member x.Run (expr : Expr<#seq<'a>>) : MongoOperationResult<'a> =
 
             let collection : Scope<'a> option ref = ref None
+            // REVIEW: probably want to switch to an enum
+            //         or discriminated union to handle the other potential operations,
+            //         e.g. remove, replace, upsert, repsert
             let isUpdate = ref false
 
             let queryDoc = BsonDocument()
@@ -393,6 +421,10 @@ module Expression =
                     match x with
                     | TraverseResult.For (expr) ->
                         let obj =
+                            // extracts the value from the For expression
+                            // depends on whether was defined as a local variable
+                            // (e.g. inside another function), or as a static one
+                            // (e.g. binding at the module level)
                             match expr with
                             | Value (obj, _) -> Some obj
                             | PropertyGet (_, prop, _) -> Some (prop.GetValue null)

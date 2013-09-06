@@ -23,12 +23,23 @@ open Microsoft.FSharp.Reflection
 open MongoDB.Bson
 
 [<AutoOpen>]
+/// <summary>
+/// Contains definition of <c>bson</c> function to parse quotations.
+/// </summary>
 module Impl =
 
     let private queryParser = Query.parser
 
     let private updateParser = Update.parser
 
+    /// <summary>
+    /// Traverses an expression and constructs an equivalent <c>BsonDocument</c> based on it structure.
+    /// When the quotation has a type signature of <c>'a -> bool</c>, then it is parsed as a query.
+    /// When the quotation has a type signature of <c>'a -> unit list</c>
+    /// or <c>'a -> 'a</c>, then it is parsed as an update.
+    /// </summary>
+    /// <param name="q">The code quotation to traverse.</param>
+    /// <returns>A <c>BsonDocument</c> representing the query or update operation.</returns>
     let bson (q : Expr<'a -> 'b>) =
         match box q with
         | :? Expr<'a -> bool> as q ->
@@ -78,16 +89,29 @@ module Impl =
         | :? Expr<'a -> 'a> as q ->
             match q with
             | ExprShape.ShapeLambda (v, body) ->
+                // handles the { x with foo = ...; bar = ...; ... } form
+                //
+                // NOTE: a special case exists for when the first field
+                //       (in the record type definition) is modified,
+                //       as no Let expression is used because it is the first constructor argument
+                //
+                // REVIEW: rename this active pattern to something a bit more meaningful?
+                //         e.g. MakeRecord, UpdateRecord
                 let rec (|NestedLet|_|) expr =
                     match expr with
+                    // case for when the first record field is unmodified
                     | NewRecord (typ, PropertyGet _ :: _) -> None
 
+                    // case for when the first record field is modified
                     | NewRecord (typ, value :: _) ->
                         let field = FSharpType.GetRecordFields(typ).[0]
                         Some([ field.Name ], [ value ])
 
-                    | Let (field, value, NestedLet (restFields, restValues)) -> Some(field.Name :: restFields, value :: restValues)
+                    // case for when multiple record fields are modified
+                    | Let (field, value, NestedLet (restFields, restValues)) ->
+                        Some(field.Name :: restFields, value :: restValues)
 
+                    // case for when single (or final in series of lets) is modified
                     // TODO: verify the field (index) of the record type
                     | Let (field, value, _) -> Some([ field.Name ], [ value ])
                     | _ -> None

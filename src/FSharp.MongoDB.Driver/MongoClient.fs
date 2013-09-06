@@ -20,20 +20,26 @@ open System.Net
 open FSharp.MongoDB.Bson.Serialization
 
 [<Interface>]
+/// Represents a client of the cluster.
 type IMongoClient =
+    /// <summary>Returns the specified database.</summary>
+    /// <param name="db">The database name.</param>
     abstract member GetDatabase : string -> IMongoDatabase
 
 [<AutoOpen>]
 [<RequireQualifiedAccess>]
+/// Provides configuration of the <see cref="MongoClient" />.
 module Client =
 
     [<RequireQualifiedAccess>]
+    /// Settings for the <see cref="MongoClient" />.
     type Settings = {
         Stream : Backbone.StreamSettings
         ConnectionPool : Backbone.ConnectionPoolSettings
         ClusterableServer : Backbone.ClusterableServerSettings
     }
 
+    /// The default settings for the <see cref="MongoClient" />.
     let defaultSettings = {
         Settings.Stream = Backbone.DefaultSettings.stream
         Settings.ConnectionPool = Backbone.DefaultSettings.connectionPool

@@ -25,6 +25,11 @@ open Microsoft.FSharp.Reflection
 open MongoDB.Bson.Serialization
 open MongoDB.Bson.Serialization.Conventions
 
+/// <summary>
+/// Convention for a discriminated union that maps the constructor and fields.
+/// Handles when the overall union type contains non-null union cases,
+/// or is a singleton union case.
+/// </summary>
 type DiscriminatedUnionConvention() =
     inherit ConventionBase("F# Discriminated Union")
 
@@ -56,14 +61,17 @@ type DiscriminatedUnionConvention() =
         member __.Apply classMap =
             let typ = classMap.ClassType
 
+            // handles when `typ` is a particular union case
             if typ.DeclaringType <> null && isUnion typ.DeclaringType then
                 FSharpType.GetUnionCases typ
                 |> Array.find (fun x -> x.Name = typ.Name)
                 |> mapCase classMap
 
+            // handles when `typ` is a singleton discriminated union
             elif isUnion typ && not typ.IsAbstract then
                 let nested = typ.GetNestedTypes() |> Array.filter isUnion
                 let props = typ.GetProperties() |> Array.filter (fun x -> isUnion x.PropertyType)
 
+                // should not have any nested types or static properties
                 if nested.Length = 0 && props.Length = 0 then
                     FSharpType.GetUnionCases typ |> get 0 |> mapCase classMap

@@ -19,9 +19,11 @@ open System
 open System.Net
 
 [<RequireQualifiedAccess>]
+/// Provides configuration of the <see cref="MongoBackbone" />.
 module Backbone =
 
     [<RequireQualifiedAccess>]
+    /// Settings for the <see cref="NetworkStreamFactory" />.
     type StreamSettings = {
         ConnectTimeout : TimeSpan option
         ReadTimeout : TimeSpan option
@@ -31,6 +33,7 @@ module Backbone =
     }
 
     [<RequireQualifiedAccess>]
+    /// Settings for the <see cref="ConnectionPoolChannelProviderFactory" />.
     type ConnectionPoolSettings = {
         ConnectionMaxIdleTime : TimeSpan option
         ConnectionMaxLifeTime : TimeSpan option
@@ -41,6 +44,7 @@ module Backbone =
     }
 
     [<RequireQualifiedAccess>]
+    /// Settings for the <see cref="ClusterableServerFactory" />.
     type ClusterableServerSettings = {
         ConnectRetryFrequency : TimeSpan option
         HeartbeatFrequency : TimeSpan option
@@ -49,6 +53,7 @@ module Backbone =
     }
 
     [<RequireQualifiedAccess>]
+    /// Combined settings for the <see cref="MongoBackbone" />.
     type AllSettings = {
         Stream : StreamSettings
         ConnectionPool : ConnectionPoolSettings
@@ -58,8 +63,12 @@ module Backbone =
     }
 
     [<RequireQualifiedAccess>]
+    /// Contains the default settings for the various factories
+    /// and <see cref="MongoBackbone" />.
     module DefaultSettings =
 
+        /// The default <see cref="NetworkStreamFactory" /> settings.
+        /// Designed to override defaults for only the specific fields.
         let stream = {
             StreamSettings.ConnectTimeout = None
             StreamSettings.ReadTimeout = None
@@ -68,6 +77,8 @@ module Backbone =
             StreamSettings.WriteTimeout = None
         }
 
+        /// The default <see cref="ConnectionPoolChannelProviderFactory" /> settings.
+        /// Designed to override defaults for only the specific fields.
         let connectionPool = {
             ConnectionPoolSettings.ConnectionMaxIdleTime = None
             ConnectionPoolSettings.ConnectionMaxLifeTime = None
@@ -77,6 +88,8 @@ module Backbone =
             ConnectionPoolSettings.WaitQueueSize = None
         }
 
+        /// The default <see cref="ClusterableServerFactory" /> settings.
+        /// Designed to override defaults for only the specific fields.
         let clusterableServer = {
             ClusterableServerSettings.ConnectRetryFrequency = None
             ClusterableServerSettings.HeartbeatFrequency = None
@@ -84,6 +97,9 @@ module Backbone =
             ClusterableServerSettings.MaxMessageSizeDefault = None
         }
 
+        /// The default <see cref="MongoBackbone" /> settings.
+        /// Uses the default settings of the other factories,
+        /// and connects to a standalone server on localhost at the default port.
         let all = {
             AllSettings.Stream = stream
             AllSettings.ConnectionPool = connectionPool

@@ -20,6 +20,10 @@ open Microsoft.FSharp.Reflection
 open MongoDB.Bson.Serialization
 open MongoDB.Bson.Serialization.Serializers
 
+/// <summary>
+/// A serializer for option types.
+/// Writes the value for the <c>Some</c> case, and <c>null</c> for the None case.
+/// </summary>
 type OptionTypeSerializer(typ : System.Type) =
     inherit BsonBaseSerializer()
 

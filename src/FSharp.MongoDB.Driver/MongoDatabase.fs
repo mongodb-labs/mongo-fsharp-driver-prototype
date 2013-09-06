@@ -20,11 +20,20 @@ open MongoDB.Bson
 open MongoDB.Driver.Core
 
 [<Interface>]
+/// Represents a database of the cluster.
 type IMongoDatabase =
+    /// <summary>Drops the specified database.</summary>
     abstract member Drop : unit -> CommandResult
 
+    /// <summary>Returns the specified collection.</summary>
+    /// <param name="cltcn">The collection name.</param>
+    /// <returns>Returns </returns>
     abstract member GetCollection : string -> IMongoCollection<BsonDocument>
 
+    /// <summary>
+    /// Returns the specified collection, parametrized by the generic type.
+    /// </summary>
+    /// <param name="cltcn">The collection name.</param>
     abstract member GetCollection<'DocType> : string -> IMongoCollection<'DocType>
 
 type internal MongoDatabase =

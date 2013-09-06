@@ -20,6 +20,10 @@ open Microsoft.FSharp.Reflection
 open MongoDB.Bson.Serialization
 open MongoDB.Bson.Serialization.Serializers
 
+/// <summary>
+/// A serializer for discriminated unions.
+/// Handles null union cases.
+/// </summary>
 type DiscriminatedUnionSerializer(typ : System.Type) =
     inherit BsonBaseSerializer()
 
@@ -44,6 +48,7 @@ type DiscriminatedUnionSerializer(typ : System.Type) =
         let name = reader.ReadString "_t" // TODO: base element name off convention
         let union = cases.[name]
 
+        // determine whether name is a null union case or not
         match union.GetFields() with
         | [| |] ->
             reader.ReadEndDocument()
@@ -53,4 +58,4 @@ type DiscriminatedUnionSerializer(typ : System.Type) =
             let case = typ.GetNestedTypes() |> Array.filter isUnion |> Array.find (fun x -> x.Name = name)
 
             reader.ReturnToBookmark mark
-            BsonSerializer.Deserialize(reader, case, options)
+            BsonSerializer.Deserialize(reader, case, options) // defer to the class map

@@ -20,6 +20,9 @@ open System.Collections.Generic
 open MongoDB.Bson.Serialization
 open MongoDB.Bson.Serialization.Serializers
 
+/// <summary>
+/// A serializer for F# sets.
+/// </summary>
 type FSharpSetSerializer<'ElemType when 'ElemType : comparison>() =
     inherit BsonBaseSerializer()
 
@@ -29,5 +32,6 @@ type FSharpSetSerializer<'ElemType when 'ElemType : comparison>() =
         serializer.Serialize(writer, typeof<IEnumerable<'ElemType>>, value, options)
 
     override __.Deserialize(reader, nominalType, actualType, options) =
+        // deserialize into `IEnumerable` first, then convert to a set
         let res = serializer.Deserialize(reader, typeof<IEnumerable<'ElemType>>, options)
         res |> unbox |> Set.ofSeq<'ElemType> |> box

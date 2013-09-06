@@ -20,6 +20,9 @@ open System.Collections.Generic
 open MongoDB.Bson.Serialization
 open MongoDB.Bson.Serialization.Serializers
 
+/// <summary>
+/// A serializer for F# maps.
+/// </summary>
 type FSharpMapSerializer<'KeyType, 'ValueType when 'KeyType : comparison>() =
     inherit BsonBaseSerializer()
 
@@ -35,6 +38,7 @@ type FSharpMapSerializer<'KeyType, 'ValueType when 'KeyType : comparison>() =
         serializer.Serialize(writer, typeof<IDictionary<'KeyType, 'ValueType>>, dictValue, options)
 
     override __.Deserialize(reader, nominalType, actualType, options) =
+        // deserialize into `IDictionary` first, then convert to a map
         serializer.Deserialize(reader, typeof<IDictionary<'KeyType, 'ValueType>>, options)
         :?> IDictionary<'KeyType, 'ValueType>
         |> Seq.map (|KeyValue|)

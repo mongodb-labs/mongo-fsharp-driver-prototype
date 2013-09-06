@@ -20,15 +20,18 @@ open MongoDB.Bson.IO
 open MongoDB.Driver.Core
 
 [<RequireQualifiedAccess>]
+/// Provides configuration of the database- and collection-level operations.
 module Operation =
 
     [<RequireQualifiedAccess>]
+    /// Settings for the <see cref="GenericCommandOperation" />.
     type CommandSettings = {
         ReaderSettings : BsonBinaryReaderSettings option
         WriterSettings : BsonBinaryWriterSettings option
     }
 
     [<RequireQualifiedAccess>]
+    /// Settings for the <see cref="InsertOperation" />.
     type InsertSettings = {
         ReaderSettings : BsonBinaryReaderSettings option
         WriterSettings : BsonBinaryWriterSettings option
@@ -38,6 +41,7 @@ module Operation =
     }
 
     [<RequireQualifiedAccess>]
+    /// Settings for the <see cref="QueryOperation" />.
     type QuerySettings = {
         ReaderSettings : BsonBinaryReaderSettings option
         WriterSettings : BsonBinaryWriterSettings option
@@ -45,6 +49,7 @@ module Operation =
     }
 
     [<RequireQualifiedAccess>]
+    /// Settings for the <see cref="UpdateOperation" />.
     type UpdateSettings = {
         ReaderSettings : BsonBinaryReaderSettings option
         WriterSettings : BsonBinaryWriterSettings option
@@ -53,6 +58,7 @@ module Operation =
     }
 
     [<RequireQualifiedAccess>]
+    /// Settings for the <see cref="RemoveOperation" />.
     type RemoveSettings = {
         ReaderSettings : BsonBinaryReaderSettings option
         WriterSettings : BsonBinaryWriterSettings option
@@ -62,11 +68,15 @@ module Operation =
     [<RequireQualifiedAccess>]
     module DefaultSettings =
 
+        /// The default settings for the <see cref="GenericCommandOperation" />.
+        /// Designed to override defaults for only the specific fields.
         let command = {
             CommandSettings.ReaderSettings = None
             CommandSettings.WriterSettings = None
         }
 
+        /// The defaults settings for the <see cref="InsertOperation" />.
+        /// Designed to override defaults for only the specific fields.
         let insert = {
             InsertSettings.ReaderSettings = None
             InsertSettings.WriterSettings = None
@@ -75,12 +85,16 @@ module Operation =
             InsertSettings.CheckInsertDocuments = None
         }
 
+        /// The defaults settings for the <see cref="QueryOperation" />.
+        /// Designed to override defaults for only the specific fields.
         let query = {
             QuerySettings.ReaderSettings = None
             QuerySettings.WriterSettings = None
             QuerySettings.BatchSize = None
         }
 
+        /// The defaults settings for the <see cref="UpdateOperation" />.
+        /// Designed to override defaults for only the specific fields.
         let update = {
             UpdateSettings.ReaderSettings = None
             UpdateSettings.WriterSettings = None
@@ -88,6 +102,8 @@ module Operation =
             UpdateSettings.CheckUpdateDocument = None
         }
 
+        /// The defaults settings for the <see cref="RemoveOperation" />.
+        /// Designed to override defaults for only the specific fields.
         let remove = {
             RemoveSettings.ReaderSettings = None
             RemoveSettings.WriterSettings = None

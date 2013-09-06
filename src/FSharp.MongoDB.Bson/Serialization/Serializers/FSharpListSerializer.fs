@@ -20,6 +20,9 @@ open System.Collections.Generic
 open MongoDB.Bson.Serialization
 open MongoDB.Bson.Serialization.Serializers
 
+/// <summary>
+/// A serializer for F# lists.
+/// </summary>
 type FSharpListSerializer<'ElemType>() =
     inherit BsonBaseSerializer()
 
@@ -29,5 +32,6 @@ type FSharpListSerializer<'ElemType>() =
         serializer.Serialize(writer, typeof<IEnumerable<'ElemType>>, value, options)
 
     override __.Deserialize(reader, nominalType, actualType, options) =
+        // deserialize into `IEnumerable` first, then convert to a list
         let res = serializer.Deserialize(reader, typeof<IEnumerable<'ElemType>>, options)
         res |> unbox |> List.ofSeq<'ElemType> |> box

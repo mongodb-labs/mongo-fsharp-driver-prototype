@@ -28,32 +28,62 @@ module Fluent =
 
     [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
     [<RequireQualifiedAccess>]
+    /// <summary>Basic operations on the <see cref="Scope" /> type.</summary>
     module Scope =
 
+        /// <summary>
+        /// Returns a new <see cref="Scope" /> with the specified filter.
+        /// </summary>
         let find query scope =
             { scope with Query = Some query }
 
+        /// <summary>
+        /// Returns a new <see cref="Scope" /> with the projection applied.
+        /// </summary>
         let fields project scope =
             { scope with Project = Some project }
 
+        /// <summary>
+        /// Returns a new <see cref="Scope" /> with the sort order applied.
+        /// </summary>
         let sort order scope =
             { scope with Sort = Some order }
 
+        /// <summary>
+        /// Returns a new <see cref="Scope" /> with the limit applied.
+        /// Used with the number of documents found, updated, or removed.
+        /// </summary>
         let limit n scope =
             { scope with Limit = n }
 
+        /// <summary>
+        /// Returns a new <see cref="Scope" /> with the skip applied.
+        /// </summary>
         let skip n scope =
             { scope with Skip = n }
 
+        /// <summary>
+        /// Returns a new <see cref="Scope" /> with the query options applied.
+        /// </summary>
         let withQueryOptions options scope =
             { scope with QueryOptions = options }
 
+        /// <summary>
+        /// Returns a new <see cref="Scope" /> with the read preference applied.
+        /// </summary>
         let withReadPreference readPref scope =
             { scope with ReadPreference = readPref }
 
+        /// <summary>
+        /// Returns a new <see cref="Scope" /> with the write options applied.
+        /// </summary>
         let withWriteOptions options scope =
             { scope with WriteOptions = options }
 
+        /// <summary>
+        /// Returns the number of documents satisfying the predicate
+        /// of the current <see cref="Scope" />.
+        /// </summary>
         let count (scope : Scope<'DocType>) =
             let backbone = scope.Backbone
             let db = scope.Database
@@ -73,6 +103,10 @@ module Fluent =
 
             backbone.Run db cmd
 
+        /// <summary>
+        /// Removes all of the documents satisfying the predicate
+        /// of the current <see cref="Scope" />.
+        /// </summary>
         let remove (scope : Scope<'DocType>) =
             let backbone = scope.Backbone
             let db = scope.Database
@@ -95,6 +129,10 @@ module Fluent =
 
             backbone.Remove db clctn query flags settings
 
+        /// <summary>
+        /// Removes a single document satisfying the predicate
+        /// of the current <see cref="Scope" />.
+        /// </summary>
         let removeOne (scope : Scope<'DocType>) =
             let backbone = scope.Backbone
             let db = scope.Database
@@ -116,6 +154,11 @@ module Fluent =
 
             backbone.Remove db clctn query flags settings
 
+        /// <summary>
+        /// Updates all of the documents satisfying the predicate
+        /// of the current <see cref="Scope" />
+        /// according to the supplied update modifiers.
+        /// </summary>
         let update update (scope : Scope<'DocType>) =
             let backbone = scope.Backbone
             let db = scope.Database
@@ -139,6 +182,11 @@ module Fluent =
 
             backbone.Update db clctn query update flags settings
 
+        /// <summary>
+        /// Updates a single document satisfying the predicate
+        /// of the current <see cref="Scope" />
+        /// according to the supplied update modifiers.
+        /// </summary>
         let updateOne update (scope : Scope<'DocType>) =
             let backbone = scope.Backbone
             let db = scope.Database
@@ -160,6 +208,11 @@ module Fluent =
 
             backbone.Update db clctn query update flags settings
 
+        /// <summary>
+        /// Replaces all of the documents satisfying the predicate
+        /// of the current <see cref="Scope" />
+        /// according to the supplied update modifiers.
+        /// </summary>
         let replace update (scope : Scope<'DocType>) =
             let backbone = scope.Backbone
             let db = scope.Database
@@ -183,6 +236,11 @@ module Fluent =
 
             backbone.Update db clctn query update flags settings
 
+        /// <summary>
+        /// Replaces a single document satisfying the predicate
+        /// of the current <see cref="Scope" />
+        /// according to the supplied update modifiers.
+        /// </summary>
         let replaceOne update (scope : Scope<'DocType>) =
             let backbone = scope.Backbone
             let db = scope.Database
@@ -204,6 +262,10 @@ module Fluent =
 
             backbone.Update db clctn query update flags settings
 
+        /// <summary>
+        /// Returns information about the query plan,
+        /// as represented by the current <see cref="Scope" />.
+        /// </summary>
         let explain (scope : Scope<'DocType>) =
             let backbone = scope.Backbone
             let db = scope.Database
@@ -230,6 +292,10 @@ module Fluent =
             if not (iter.MoveNext()) then raise <| MongoOperationException("explain command missing response document")
             iter.Current
 
+        /// <summary>
+        /// Performs text search with the specified phrase
+        /// using the current <see cref="Scope" />.
+        /// </summary>
         let textSearch text (scope : Scope<'DocType>) =
             let backbone = scope.Backbone
             let db = scope.Database
@@ -239,6 +305,10 @@ module Fluent =
 
             backbone.Run db cmd
 
+        /// <summary>
+        /// Performs text search with the specified phrase and options
+        /// using the current <see cref="Scope" />.
+        /// </summary>
         let textSearchWithOptions text (options : Scope.TextSearchOptions) (scope : Scope<'DocType>) =
             let backbone = scope.Backbone
             let db = scope.Database

@@ -21,6 +21,8 @@ open MongoDB.Bson.Serialization
 
 open FSharp.MongoDB.Bson.Serialization.Serializers
 
+/// Provides (de)serialization of F# data types.
+/// Includes options, lists, maps, sets, records, and discriminated unions.
 type FSharpValueSerializationProvider() =
 
     let isUnion typ = FSharpType.IsUnion typ
@@ -82,11 +84,15 @@ type FSharpValueSerializationProvider() =
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 [<RequireQualifiedAccess>]
+/// <summary>
+/// Entry point to initialize the <see cref="FSharpValueSerializationProvider" />.
+/// </summary>
 module Serializers =
 
     let mutable private registered = false
 
     [<CompiledName("Register")>]
+    /// <summary>Registers the <see cref="FSharpValueSerializationProvider" />.</summary>
     let register() =
         if not registered then
             registered <- true

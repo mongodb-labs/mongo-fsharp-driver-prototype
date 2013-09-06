@@ -19,6 +19,9 @@ open Microsoft.FSharp.Reflection
 
 open MongoDB.Bson.Serialization.Conventions
 
+/// <summary>
+/// Convention for a record type that maps the constructor and fields.
+/// </summary>
 type RecordTypeConvention() =
     inherit ConventionBase("F# Record Type")
 
